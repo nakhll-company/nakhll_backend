@@ -3,7 +3,7 @@ from django.db.models.functions import Cast
 from django.db.models.fields import FloatField
 from django.db.models.query import QuerySet
 from django.db.models.query_utils import Q
-from django.db.models import  F
+from django.db.models import F
 from django.utils.translation import ugettext as _
 from rest_framework.validators import ValidationError
 from nakhll_market.models import Product, Shop
@@ -17,7 +17,6 @@ class LogisticUnitInterface:
         self.logistic_units = []
         self.errors = []
 
-
     # TODO: chagne create to generate
     # TODO: remove return statement as it save items to self
     def generate_logistic_unit_list(self):
@@ -29,8 +28,8 @@ class LogisticUnitInterface:
             self.total_price += shop_obj.total_price
             self.logistic_units.append(shop_obj.logistic_units)
 
-
         if self.errors:
+            # TODO: flag these items instead of deleting them
             self.cart.items.filter(product__in=self.errors).delete()
             raise ValidationError(_('این محصولات هیچ روش ارسالی ندارند و از سبد خرید شما حذف خواهند شد<br>{}').format(
                 '<br>'.join([product.Title for product in self.errors])

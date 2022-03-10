@@ -25,12 +25,14 @@ class Cart(models.Model):
         verbose_name_plural = _('سبدهای خرید')
 
     old_id = models.UUIDField(null=True, blank=True)
-    user = models.OneToOneField(User, verbose_name=_('کاربر'), on_delete=models.CASCADE, related_name='cart', null=True)
+    user = models.OneToOneField(User, verbose_name=_('کاربر'), on_delete=models.CASCADE,
+                                related_name='cart', null=True)
     guest_unique_id = models.CharField(_('شناسه کاربر مهمان'), max_length=100, null=True, blank=True)
     extra_data = models.JSONField(null=True, encoder=DjangoJSONEncoder)
     address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True,
-            blank=True, related_name='invoices', verbose_name=_('آدرس'))
-    logistic_details = models.JSONField(null=True, blank=True, encoder=DjangoJSONEncoder, verbose_name=_('جزئیات واحد ارسال'))
+                                blank=True, related_name='invoices', verbose_name=_('آدرس'))
+    logistic_details = models.JSONField(null=True, blank=True, encoder=DjangoJSONEncoder,
+                                        verbose_name=_('جزئیات واحد ارسال'))
     coupons = models.ManyToManyField('coupon.Coupon', verbose_name=_('کوپن ها'), blank=True)
     objects = CartManager()
 
@@ -86,22 +88,19 @@ class Cart(models.Model):
         total_coupon_price = sum([coupon['price'] for coupon in self.get_coupons_price()])
         return self.cart_price + self.logistic_price - total_coupon_price
 
-
     @property
     def ordered_items(self):
-        ''' Return all cart items in order by shop'''
+        """ Return all cart items in order by shop"""
         return self.items.order_by('-product__FK_Shop')
 
-
     def convert_to_invoice(self):
-        ''' Convert cart to invoice '''
+        """ Convert cart to invoice """
         logistic_details = self._generate_logistic_details()
         self._validate_coupons()
         self._validate_items()
         invoice = self._create_invoice(logistic_details)
         self._clear_cart_items()
         return invoice
-
 
     def _create_invoice(self, lud):
         invoice = Invoice.objects.create(
@@ -179,8 +178,7 @@ class Cart(models.Model):
                 'price': price
             })
         return result
-        
-    
+
     def _generate_logistic_details(self):
         lui = LogisticUnitInterface(self)
         lui.generate_logistic_unit_list()
@@ -196,6 +194,8 @@ class CartItem(models.Model):
     class Meta:
         verbose_name = 'کالای سبد خرید'
         verbose_name_plural = 'کالاهای سبد خرید'
+    class Statuses(models.TextChoices):
+
 
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, verbose_name=_(
         'آیتم‌های سبد خرید'), related_name='items')
@@ -204,6 +204,7 @@ class CartItem(models.Model):
     count = models.PositiveSmallIntegerField(verbose_name=_('تعداد'))
     added_datetime = models.DateTimeField(_('زمان اضافه شدن'), auto_now_add=True)
     product_last_state = models.JSONField(null=True, encoder=DjangoJSONEncoder)
+    status = models.CharField(_('Status'), max_length=10, choices=)
     objects = CartItemManager()
     extra_data = models.JSONField(null=True, encoder=DjangoJSONEncoder)
 
@@ -216,10 +217,10 @@ class CartItem(models.Model):
         return int(self.product.Price) * self.count
 
     def get_cartitem_changes(self):
-        ''' Check for any changes, show them to user and save new product state as last_known_state '''
+        """ Check for any changes, show them to user and save new product state as last_known_state """
 
     def convert_to_invoice_item(self, invoice):
-        ''' Convert cart item to invoice item '''
+        """ Convert cart item to invoice item """
         # image = self.product.Image if os.path.exists(self.product.Image.path) else None
         # image_thumbnail = self.product.Image_thumbnail if os.path.exists(self.product.Image_thumbnail.path) else None
         InvoiceItem.objects.create(
