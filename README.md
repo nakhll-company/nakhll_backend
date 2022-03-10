@@ -1,9 +1,12 @@
 
 # Nakhll
 
-[NAKHLL_DESCRIPTION]
+Nakhll is a market place, allows pepole to communicate with each other in order to grow together.
 
-## App Installation and setup
+# Installation and setup
+- [Manual Installation](#manual_installation)
+
+## Maual Installation {#manual_installation}
 
 ### Linux
 
@@ -12,6 +15,8 @@
 3. `virtualenv .venv`
 4. `source .venv/bin/activate`
 5. `pip install -r requirements.txt`
+6. setup Postgres database as described [here](#setup_db)
+
 
 ### Windows
 
@@ -21,8 +26,20 @@
 4. `C:/Program Files/python3/bin/python -m venv .venv`
 5. `.venv/bin/activate.bat`
 6. `pip install -r requirements.txt`
+7. setup Postgres database as described [here](#setup_db)
+8. `python3 manage.py migrate`
+9. `python3 manage.py runserver`
 
-## Database setup
+## Docker Installation
+
+1. Install [Docker](https://docs.docker.com/engine/install/) and
+   [docker-compose](https://docs.docker.com/compose/install/)
+2. Download our `Dockerfile` file from 
+   [here](https://raw.githubusercontent.com/nakhll-company/nakhll_backend/main/Dockerfile)
+3. run `docker-compose 
+
+
+## Database setup {#setup_db}
 
 1. `sudo -su postgres`
 2. `psql`
@@ -30,15 +47,15 @@
 4. `CREATE DATABASE nakhlldb;`
 5. `GRANT ALL PRIVILEGES ON DATABASE nakhlldb TO nakhll;`
 6. `ALTER ROLE "nakhll" WITH LOGIN;`
+7. `python3 manage.py migrate`
+8. `python3 manage.py runserver`
 
 ## .env setup
 
-Rename `sample.env` to `.env`, fill all data that is available
-
-## Start app
-
-1. `python3 manage.py migrate`
-2. `python3 manage.py runserver`
+Rename `sample.env` to `.env`, fill all data that is available. Note that you can leave
+values as they are, but we recommend to replace them with some appropriate values.
+For each value, there is a description about how it should be filled, see 
+[docs](https://docs.nakhll.com/nakhll/.env) for more info
 
 
 
