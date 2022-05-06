@@ -58,7 +58,7 @@ Jinja2==3.0.3
 kavenegar==1.1.2
 lazy-object-proxy==1.7.1
 lxml==4.6.3
-Markdown==3.1.1
+Markdown==3.3.7
 MarkupPy==1.14
 MarkupSafe==2.1.0
 matplotlib-inline==0.1.3
