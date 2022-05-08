@@ -359,8 +359,8 @@ class ProductsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     def get_paginated_response(self, data):
         res = super().get_paginated_response(data)
-        res.data['max_price'] = self.max_price
-        res.data['min_price'] = self.min_price
+        res.data['max_price'] = int(self.max_price)
+        res.data['min_price'] = int(self.min_price)
         return res
 
 
