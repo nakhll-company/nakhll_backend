@@ -662,12 +662,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = ['User_Profile']
 
-    def validate(self, attrs):
-        if not attrs['User_Profile']['NationalCode']:
-            raise serializers.ValidationError(
-                'NationalCode is required'
-            )
-        return attrs
 
 
 class ShopSettingsSerializer(serializers.ModelSerializer):
@@ -703,8 +697,6 @@ class ShopAllSettingsSerializer(serializers.ModelSerializer):
             'bank_account', 'social_media', 'Description', 'FK_ShopManager',
         ]
         read_only_fields = ['Title', 'Slug', 'image_thumbnail_url']
-        error_messages = {
-            'NationalCode': {'max_length': 'NationalCode must be 11 characters', }, }
 
     def validate(self, data):
         if 'FK_ShopManager' in data:
