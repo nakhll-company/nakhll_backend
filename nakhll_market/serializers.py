@@ -645,6 +645,15 @@ class SettingsProfileSerializer(serializers.ModelSerializer):
             'MobileNumber': {'validators': []}
         }
 
+    def validate_NationalCode(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                'وارد کردن کد ملی الزامی است'
+            )
+        elif len(value) != 10:
+            raise serializers.ValidationError('کد ملی باید 10 رقم باشد')
+        return value
+
 
 class UserProfileSerializer(serializers.ModelSerializer):
     User_Profile = SettingsProfileSerializer(read_only=False)
@@ -652,6 +661,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['User_Profile']
+
+    def validate(self, attrs):
+        if not attrs['User_Profile']['NationalCode']:
+            raise serializers.ValidationError(
+                'NationalCode is required'
+            )
+        return attrs
 
 
 class ShopSettingsSerializer(serializers.ModelSerializer):
@@ -687,6 +703,8 @@ class ShopAllSettingsSerializer(serializers.ModelSerializer):
             'bank_account', 'social_media', 'Description', 'FK_ShopManager',
         ]
         read_only_fields = ['Title', 'Slug', 'image_thumbnail_url']
+        error_messages = {
+            'NationalCode': {'max_length': 'NationalCode must be 11 characters', }, }
 
     def validate(self, data):
         if 'FK_ShopManager' in data:
