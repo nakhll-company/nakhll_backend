@@ -745,14 +745,11 @@ class ShopAllSettingsSerializer(serializers.ModelSerializer):
             data['State'] = state
             data['BigCity'] = big_city
             data['City'] = city
-        except State.DoesNotExist:
-            raise serializers.ValidationError(
-                {'error': 'استان انتخاب شده معتبر نمی باشد.'})
-        except BigCity.DoesNotExist:
-            raise serializers.ValidationError(
-                {'error': 'شهرستان انتخاب شده معتبر نمی باشد.'})
-        except City.DoesNotExist:
-            raise serializers.ValidationError({'error': 'شهر انتخاب شده معتبر نمی باشد.'})
+        except BaseException:
+            '''
+            It seems all validation can be done in the frontend
+            os we don't raise error when we haven't state, city, bigcity
+            '''
         return data
 
     def update(self, instance, validated_data):
