@@ -1,6 +1,7 @@
 import random
 from django.contrib.postgres.aggregates.general import ArrayAgg
 import pandas as pd
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 from django.http import response
 from django.http.response import Http404
@@ -19,6 +20,7 @@ from rest_framework.decorators import action
 from django_filters import rest_framework as restframework_filters
 from logistic.models import ShopLogisticUnit
 from nakhll.utils import get_dict
+from nakhll_market.exceptions import UniqueTitleShopException
 from nakhll_market.interface import DiscordAlertInterface, ProductChangeTypes
 from nakhll_market.models import (
     Alert,
@@ -250,13 +252,15 @@ class ShopOwnerProductViewSet(
         # Convert price and old price from Toman to Rial to store in DB
         old_price = data.get('OldPrice', 0) * 10
         price = data.get('Price', 0) * 10
-
-        if old_price:
-            product = serializer.save(
-                OldPrice=price, Price=old_price, FK_Shop=shop)
-        else:
-            product = serializer.save(
-                OldPrice=old_price, Price=price, FK_Shop=shop)
+        try:
+            if old_price:
+                product = serializer.save(
+                    OldPrice=price, Price=old_price, FK_Shop=shop)
+            else:
+                product = serializer.save(
+                    OldPrice=old_price, Price=price, FK_Shop=shop)
+        except IntegrityError:
+            raise UniqueTitleShopException()
         # product.post_range_cities.add(*post_range)
 
         # TODO: Check if product created successfully and published and alerts

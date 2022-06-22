@@ -1,7 +1,12 @@
+
+from django.db import IntegrityError
+
 from email import message
+
 from invoice.models import Invoice
 from logistic.serializers import AddressSerializer
 from nakhll.utils import get_dict
+from nakhll_market.exceptions import UniqueTitleShopException
 from nakhll_market.serializer_fields import Base64ImageField
 from nakhll_market.validators import validate_iran_national_code
 from restapi.serializers import (
@@ -24,6 +29,7 @@ from nakhll_market.models import (
 from shop.models import ShopFeature
 from shop.serializers import ShopLandingDetailsSerializer
 import jdatetime
+from rest_framework.validators import UniqueTogetherValidator
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -487,12 +493,15 @@ class ProductOwnerWriteSerializer(serializers.ModelSerializer):
             'product_tags',
         ]
 
+
     def create(self, validated_data):
         banners = validated_data.pop('Product_Banner')
         tags_list: list = [x['tag']
                            for x in validated_data.pop('product_tags', [])]
         post_range_cities = validated_data.pop('post_range_cities')
-        instance = Product.objects.create(**validated_data)
+        instance = Product(**validated_data)
+        self._check_unique_product_in_shop(instance.FK_Shop, instance.Title) 
+        instance.save()
         self.__tag_create(instance, tags_list)
         instance.post_range_cities.add(*post_range_cities)
         banners = [ProductBanner.objects.create(
@@ -500,6 +509,18 @@ class ProductOwnerWriteSerializer(serializers.ModelSerializer):
             for banner in banners]
         instance.Product_Banner.add(*banners)
         return instance
+
+    @staticmethod
+    def _check_unique_product_in_shop(shop, title):
+        """
+        We use this method instead of the validator because we need to check FK_Shop 
+        and Title together and we don't have access to FK_Shop in the validator
+        """
+        try:
+            Product.objects.get(FK_Shop=shop, Title=title)
+            raise UniqueTitleShopException()
+        except Product.DoesNotExist:
+            pass
 
     @staticmethod
     def __tag_create(instance, tags_list):
@@ -561,6 +582,7 @@ class ProductOwnerWriteSerializer(serializers.ModelSerializer):
         self.__update_banners(instance, validated_data)
         self.__update_tags(instance, validated_data)
         self.__update_post_range(instance, validated_data)
+        # self.__check_UniqueTitleShop(instance, validated_data) # uncomment when path request only has update fields
         for prop, value in validated_data.items():
             setattr(instance, prop, value)
         instance.save()
@@ -583,6 +605,15 @@ class ProductOwnerWriteSerializer(serializers.ModelSerializer):
         product_post_ranges = validated_data.pop('post_range_cities')
         instance.post_range_cities.add(*product_post_ranges)
 
+    # TODO: uncomment when path request only has update fields
+    # def __check_UniqueTitleShop(self, instance, validated_data):
+    #     if 'Title' not in validated_data:
+    #         return
+    #     try:
+    #         Product.objects.get(FK_Shop=instance.FK_Shop, Title=validated_data['Title'])
+    #         raise UniqueTitleShopException()
+    #     except Product.DoesNotExist:
+    #         pass
 
 class ProductOwnerReadSerializer(serializers.ModelSerializer):
     category = CategoryChildSerializer(many=False, read_only=True)
