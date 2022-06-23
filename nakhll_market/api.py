@@ -18,7 +18,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied, Authent
 from rest_framework.decorators import action
 from django_filters import rest_framework as restframework_filters
 from logistic.models import ShopLogisticUnit
-from nakhll.utils import get_dict
+from nakhll.utils import generate_unique_slug
 from nakhll_market.interface import DiscordAlertInterface, ProductChangeTypes
 from nakhll_market.models import (
     Alert,
@@ -202,7 +202,7 @@ class ShopOwnerProductViewSet(
         data = serializer.validated_data
         title = data.get('Title')
 
-        slug = self.__generate_unique_slug(title)
+        slug = generate_unique_slug(Product, title, slug_field='Slug')
         product_extra_fileds = {'Publish': True, 'Slug': slug, 'FK_Shop': shop}
         # TODO: This behavior should be inhanced later
         # ! Check if price have dicount or not
@@ -276,19 +276,6 @@ class ShopOwnerProductViewSet(
                 {'FK_Shop': f'شما به فروشگاه {shop.Title} دسترسی ندارید'},
                 code=status.HTTP_403_FORBIDDEN
             )
-
-    def __generate_unique_slug(self, title):
-        ''' Generate new unique slug for Product Model
-            NOTE: This fucntion should move to utils
-            Also the performance here is not good, it should be improved
-        '''
-        slug = slugify(title, allow_unicode=True)
-        counter = 1
-        new_slug = slug
-        while (Product.objects.filter(Slug=new_slug).exists()):
-            new_slug = f'{slug}_{counter}'
-            counter += 1
-        return new_slug
 
 
 class TagsOwnerViewSet(
@@ -461,45 +448,18 @@ class CreateShop(generics.CreateAPIView):
     def get_queryset(self):
         return Shop.objects.filter(FK_ShopManager=self.request.user)
 
-    def generate_unique_slug(self, title):
-        ''' Generate new unique slug for Shop Model
-            NOTE: This fucntion should move to utils
-        '''
-        slug = slugify(title, allow_unicode=True)
-        counter = 1
-        new_slug = slug
-        while (Shop.objects.filter(Slug=new_slug).exists()):
-            new_slug = f'{slug}_{counter}'
-            counter += 1
-        return new_slug
+    def update_user_first_and_last_name(self, serializer):
+        user = self.request.user
+        user.first_name = serializer.validated_data.pop('first_name', '')
+        user.last_name = serializer.validated_data.pop('last_name', '')
+        user.save()
 
     def perform_create(self, serializer):
-        # super().perform_create(serializer)
-        # TODO: REFACTOR: Replace state, bigcity and city id to string in front side,
-        # TODO: REFACTOR: and this gets do not need anymore
-        shop_manager = serializer.validated_data.pop('FK_ShopManager')
-        fname = shop_manager.get('first_name')
-        lname = shop_manager.get('last_name')
-        self.request.user.first_name = fname
-        self.request.user.last_name = lname
-        self.request.user.save()
-        state = serializer.validated_data.get('State')
-        bigcity = serializer.validated_data.get('BigCity')
-        city = serializer.validated_data.get('City')
-        title = serializer.validated_data.get('Title')
-        slug = serializer.validated_data.get('Slug')
-        if not slug:
-            slug = self.generate_unique_slug(title)
-        elif Shop.objects.filter(Slug=slug).exists():
-            raise ValidationError({'details': 'شناسه حجره از قبل موجود است'})
+        self.update_user_first_and_last_name(serializer)
 
         new_shop = serializer.save(
             FK_ShopManager=self.request.user,
-            Publish=True,
-            State=state,
-            BigCity=bigcity,
-            City=city,
-            Slug=slug)
+            Publish=True)
         ShopLogisticUnit.objects.generate_shop_logistic_units(new_shop)
         Alert.objects.create(
             Part='2',

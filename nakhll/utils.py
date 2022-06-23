@@ -1,4 +1,5 @@
 """Nakhll project-wide utility functions."""
+from django.utils.text import slugify
 import csv
 
 
@@ -106,3 +107,22 @@ def dict_to_table(dictionary):
         table += f'{key}: {value}<br>'
     return table
 
+
+def generate_unique_slug(model, title, slug_field='slug'):
+    """Generate a unique slug for a title.
+
+    Args:
+        title (str): A string which represents the title.
+        model (Model): A model which should be used to check for uniqueness.
+        slug_field (str): A string which represents the slug field.
+
+    Returns:
+        str: A string which represents the slug.
+    """
+    slug = slugify(title, allow_unicode=True)
+    counter = 1
+    new_slug = slug
+    while (model.objects.filter(**{slug_field: new_slug}).exists()):
+        new_slug = f'{slug}_{counter}'
+        counter += 1
+    return new_slug

@@ -1,7 +1,11 @@
-from email import message
+from attr import validate
+from django.utils import timezone
+from django.contrib.auth.models import User
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from invoice.models import Invoice
 from logistic.serializers import AddressSerializer
-from nakhll.utils import get_dict
+from nakhll.utils import get_dict, generate_unique_slug
 from nakhll_market.serializer_fields import Base64ImageField
 from nakhll_market.validators import validate_iran_national_code
 from restapi.serializers import (
@@ -10,17 +14,12 @@ from restapi.serializers import (
     ProfileImageSerializer,
     ProfileSerializer,
     StateSerializer)
-from django.contrib.auth.models import User
-from django.utils import timezone
-from django.db.models import fields, query
-from rest_framework import serializers
-from rest_framework.relations import HyperlinkedIdentityField, HyperlinkedRelatedField
-from rest_framework.utils import field_mapping
 from nakhll_market.models import (
     BigCity, City, Comment, Category, ShopBankAccount, ShopSocialMedia,
     Product, ProductBanner, Profile, Shop, Slider, State,
     LandingPageSchema, ShopPageSchema, UserImage, Tag, ProductTag,
 )
+from nakhll_market.mixins import DriveBigCityAndStateFromCityMixin
 from shop.models import ShopFeature
 from shop.serializers import ShopLandingDetailsSerializer
 import jdatetime
@@ -178,63 +177,42 @@ class ShopSimpleSerializer(serializers.ModelSerializer):
         fields = ['ID', 'slug', 'title', ]
 
 
-class CreateShopSerializer(serializers.ModelSerializer):
-    first_name = serializers.CharField(
-        required=True, source='FK_ShopManager.first_name')
-    last_name = serializers.CharField(
-        required=True, source='FK_ShopManager.last_name')
-    State = StateSerializer()
-    BigCity = BigCitySerializer()
-    City = CitySerializer()
+class CreateShopSerializer(
+    DriveBigCityAndStateFromCityMixin, 
+    serializers.ModelSerializer):
+    first_name = serializers.CharField(max_length=127, write_only=True)
+    last_name = serializers.CharField(max_length=127, write_only=True)
 
     class Meta:
         model = Shop
         fields = [
-            'Slug',
             'Title',
+            'Slug',
+            'City',
             'show_contact_info',
-            'last_name',
             'first_name',
-            'State',
-            'BigCity',
-            'City']
+            'last_name']
         extra_kwargs = {
             'Slug': {'validators': [], 'allow_null': True, 'required': False}
         }
 
-    def __init__(self, instance=None, data=..., **kwargs):
-        super().__init__(instance=instance, data=data, **kwargs)
-        user = self.context['request'].user
-        if user.first_name and user.last_name:
-            init_data = self.initial_data.copy()
-            init_data.update({'first_name': user.first_name,
-                              'last_name': user.last_name})
-            self.initial_data = init_data
+    def validate_first_name(self, value):
+        user = self.context.get('request').user
+        return user.first_name or value
+
+    def validate_last_name(self, value):
+        user = self.context.get('request').user
+        return user.last_name or value
 
     def validate(self, data):
-        state_name = data.pop(
-            'State')['name'] if 'State' in data else None
-        big_city_name = data.pop(
-            'BigCity')['name'] if 'BigCity' in data else None
-        city_name = data.pop(
-            'City')['name'] if 'City' in data else None
-        try:
-            state = State.objects.get(name=state_name)
-            big_city = BigCity.objects.get(name=big_city_name, state=state)
-            city = City.objects.get(name=city_name, big_city=big_city)
-            data['State'] = state
-            data['BigCity'] = big_city
-            data['City'] = city
-        except State.DoesNotExist:
-            raise serializers.ValidationError(
-                {'error': 'استان انتخاب شده معتبر نمی باشد.'})
-        except BigCity.DoesNotExist:
-            raise serializers.ValidationError(
-                {'error': 'شهرستان انتخاب شده معتبر نمی باشد.'})
-        except City.DoesNotExist:
-            raise serializers.ValidationError({'error': 'شهر انتخاب شده معتبر نمی باشد.'})
+        title = data.get('Title')
+        slug = data.get('Slug')
+        if not slug:
+            slug = generate_unique_slug(Shop, title, slug_field='Slug')
+        elif Shop.objects.filter(Slug=slug).exists():
+            raise ValidationError({'details': 'شناسه حجره از قبل موجود است'})
+        data['Slug'] = slug
         return data
-
 
 class FilterPageShopSerializer(serializers.ModelSerializer):
     state = StateSerializer()
@@ -556,7 +534,6 @@ class ProductOwnerWriteSerializer(serializers.ModelSerializer):
                         product=instance, tag=tag)
                     for tag in tags])
 
-
     def update(self, instance, validated_data):
         self.__update_banners(instance, validated_data)
         self.__update_tags(instance, validated_data)
@@ -760,7 +737,8 @@ class ShopAllSettingsSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'error': 'شهرستان انتخاب شده معتبر نمی باشد.'})
         except City.DoesNotExist:
-            raise serializers.ValidationError({'error': 'شهر انتخاب شده معتبر نمی باشد.'})
+            raise serializers.ValidationError(
+                {'error': 'شهر انتخاب شده معتبر نمی باشد.'})
         return data
 
     def update(self, instance, validated_data):
@@ -913,7 +891,8 @@ class NewProfileSerializer(serializers.ModelSerializer):
         # TODO: I done as image for check birthday
         if 'BrithDay' in validated_data:
             birthday = validated_data.pop('BrithDay')
-            instance.BrithDay = jdatetime.date(birthday.year, birthday.month, birthday.day)
+            instance.BrithDay = jdatetime.date(
+                birthday.year, birthday.month, birthday.day)
         instance.user.first_name = user.get('first_name')
         instance.user.last_name = user.get('last_name')
         for prop in validated_data:
