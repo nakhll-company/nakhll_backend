@@ -31,6 +31,14 @@ class ProfileResource(resources.ModelResource):
 
     class Meta:
         model = Profile
+        fields = (
+            'first_name',
+            'last_name',
+            'mobile_number',
+            'national_code',
+            'date_joined',
+            'shop_count',
+        )
 
 
 class ShopStatisticResource(resources.ModelResource):
