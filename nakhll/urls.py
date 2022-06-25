@@ -25,7 +25,7 @@ schema_view = get_schema_view(
 view_urls = [
     path('logintowebsite/', admin.site.urls),
     # path('reportspanel/', reports_admin_site.urls),
-    path('accounting/', include('accounting.urls', namespace='accounting')),
+    # path('accounting/', include('accounting.urls', namespace='accounting')),
     path('torob/', include('torob_api.urls', namespace='torob')),
     path('goto/', include('url_redirector.urls', namespace='url_redirector')),
     path('sms/', include('sms.urls')),

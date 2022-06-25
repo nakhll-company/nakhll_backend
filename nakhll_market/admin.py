@@ -1,21 +1,34 @@
 from typing import Dict, Optional
+from import_export.admin import ExportActionMixin
 from django.contrib import admin
 from django.http import HttpRequest, HttpResponse
 from django.utils.timezone import localtime
 from django.contrib import messages
 from django.utils.translation import ngettext
-from nakhll import utils
-from shop.models import ShopLanding
-from .models import (LandingPageSchema, Category, ShopPageSchema,
-                     LandingImage, LandingPage,
-                     Shop,
-                     Product, ProductBanner, Profile,
-                     Alert, DashboardBanner, Slider, Tag, ProductTag)
 from django.contrib import admin
 from django.contrib.admin import ModelAdmin
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Permission, User
+from django.db.models import Count
+from nakhll import utils
+from nakhll_market.models import (
+    LandingPageSchema,
+    Category,
+    ShopPageSchema,
+    LandingImage,
+    LandingPage,
+    Shop,
+    Product,
+    ProductBanner,
+    Profile,
+    Alert,
+    DashboardBanner,
+    Slider,
+    Tag,
+    ProductTag)
+from nakhll_market.resources import ProfileResource
 
-admin.site.site_header = 'مدیریت بازار نخل '
+
+admin.site.site_header = 'مدیریت بازار نخل'
 
 # enable django permission setting in admin panel to define custom permissions
 admin.site.register(Permission)
@@ -26,15 +39,60 @@ ModelAdmin.construct_change_message = (
 )
 
 
+class ProfileHasShopFilter(admin.SimpleListFilter):
+    title = 'حجره'
+    parameter_name = 'shop_manager'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('yes', 'دارد'),
+            ('no', 'ندارد'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'yes':
+            return queryset.have_shop()
+
+        if self.value() == 'no':
+            return queryset.have_not_shop()
+
 # profile admin panel
 @admin.register(Profile)
-class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('FK_User', 'MobileNumber', 'BrithDay', 'UserReferenceCode', 'Point')
-    readonly_fields = ('UserReferenceCode',)
-    list_filter = ('BrithDay',)
-    ordering = ['ID', 'BrithDay', 'Point', 'UserReferenceCode']
-    search_fields = ('MobileNumber', 'UserReferenceCode',)
+class ProfileAdmin(ExportActionMixin, admin.ModelAdmin):
+    list_display = ('FK_User', 'first_name', 'last_name', 'date_joined')
+    readonly_fields = ('date_joined', 'FK_User', 'MobileNumber')
+    list_filter = (
+        'FK_User__date_joined', ProfileHasShopFilter,)
+    ordering = ('-FK_User__date_joined',)
+    fields = (
+        'FK_User',
+        'MobileNumber',
+        'BrithDay',
+        'Image',
+        'ImageNationalCard',
+    )
+    search_fields = (
+        'MobileNumber__icontains',
+        'FK_User__first_name__icontains',
+        'FK_User__last_name__icontains')
+    resource_class = ProfileResource
 
+    def get_queryset(self, request: HttpRequest):
+        return super().get_queryset(request).select_related('FK_User')\
+            .shop_count()
+
+    @admin.display(ordering='FK_User__date_joined',
+                   description='تاریخ عضویت')
+    def date_joined(self, obj):
+        return obj.date_joined
+
+    @admin.display(ordering='FK_User__first_name', description='نام')
+    def first_name(self, obj):
+        return obj.user.first_name
+
+    @admin.display(ordering='FK_User__last_name', description='نام خانوادگی')
+    def last_name(self, obj):
+        return obj.user.last_name
 
 # -------------------------------------------------
 # market admin panel
@@ -42,8 +100,23 @@ class ProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Shop)
 class ShopAdmin(admin.ModelAdmin):
-    list_display = ('Title', 'Slug', 'City', 'State', 'Point', 'DateCreate', 'Available', 'Publish',)
-    list_filter = ('City', 'State', 'Publish', 'Available', 'DateCreate', 'DateUpdate')
+    list_display = (
+        'Title',
+        'Slug',
+        'City',
+        'State',
+        'Point',
+        'DateCreate',
+        'Available',
+        'Publish',
+    )
+    list_filter = (
+        'City',
+        'State',
+        'Publish',
+        'Available',
+        'DateCreate',
+        'DateUpdate')
     search_fields = ('Title', 'Slug')
     ordering = ['ID', 'DateCreate', 'DateUpdate']
     raw_id_fields = ('FK_ShopManager',)
@@ -60,12 +133,16 @@ class ProductBannerInline(admin.StackedInline):
     extra = 1
 
 
-
-
-
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('Title', 'Slug', 'Bio', 'Price', 'Status', 'DateCreate', 'Publish')
+    list_display = (
+        'Title',
+        'Slug',
+        'Bio',
+        'Price',
+        'Status',
+        'DateCreate',
+        'Publish')
     list_filter = ('Status', 'Publish', 'Available', 'DateCreate', 'DateUpdate')
     search_fields = ('Title', 'Slug', 'Description', 'Bio', 'Story')
     ordering = ['ID', 'DateCreate', 'DateUpdate']
@@ -81,7 +158,6 @@ class ProductAdmin(admin.ModelAdmin):
             updated,
         ) % updated, messages.SUCCESS)
 
-
     @admin.action(description='منتشر کن', )
     def publish_product(self, request, queryset):
         updated = queryset.update(Publish=True)
@@ -91,27 +167,35 @@ class ProductAdmin(admin.ModelAdmin):
             updated,
         ) % updated, messages.SUCCESS)
 
-
     def DateCreate(self, obj):
         return localtime(obj.DateCreate).strftime('%Y-%m-%d %H:%M:%S')
 
     def DateUpdate(self, obj):
         return localtime(obj.DateUpdate).strftime('%Y-%m-%d %H:%M:%S')
 
-    def change_view(self, request: HttpRequest, object_id: str, form_url: str = '',
-                    extra_context: Optional[Dict[str, bool]] = None) -> HttpResponse:
+    def change_view(
+            self, request: HttpRequest, object_id: str, form_url: str = '',
+            extra_context: Optional[Dict[str, bool]] = None) -> HttpResponse:
         if request.user.groups.filter(name='Photo-compress').exists():
             self.fields = ('Image', 'NewImage')
         else:
             self.fields = None
-        return super().change_view(request, object_id, form_url=form_url, extra_context=extra_context)
+        return super().change_view(request, object_id,
+                                   form_url=form_url, extra_context=extra_context)
 
 
 # -------------------------------------------------
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'order', 'slug', 'description', 'parent', 'available')
+    list_display = (
+        'id',
+        'name',
+        'order',
+        'slug',
+        'description',
+        'parent',
+        'available')
     list_filter = ('parent', 'available')
     ordering = ('-parent', 'id',)
 
@@ -148,7 +232,12 @@ class ProductBanner(ModelAdmin):
 
 @admin.register(DashboardBanner)
 class DashboardBannerAdmin(admin.ModelAdmin):
-    list_display = ('image', 'url', 'staff_user', 'created_datetime', 'publish_status')
+    list_display = (
+        'image',
+        'url',
+        'staff_user',
+        'created_datetime',
+        'publish_status')
 
     list_filter = ('staff_user', 'created_datetime', 'publish_status')
     search_fields = ('url',)

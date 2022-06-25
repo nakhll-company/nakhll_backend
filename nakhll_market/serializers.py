@@ -135,7 +135,7 @@ class ShopSerializer(serializers.ModelSerializer):
             'slug',
             'title',
             'image_thumbnail_url',
-            'total_products',
+            'products_count',
             'Description',
             'registered_months',
             'FK_ShopManager',
@@ -232,7 +232,8 @@ class CreateShopSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'error': 'شهرستان انتخاب شده معتبر نمی باشد.'})
         except City.DoesNotExist:
-            raise serializers.ValidationError({'error': 'شهر انتخاب شده معتبر نمی باشد.'})
+            raise serializers.ValidationError(
+                {'error': 'شهر انتخاب شده معتبر نمی باشد.'})
         return data
 
 
@@ -556,7 +557,6 @@ class ProductOwnerWriteSerializer(serializers.ModelSerializer):
                         product=instance, tag=tag)
                     for tag in tags])
 
-
     def update(self, instance, validated_data):
         self.__update_banners(instance, validated_data)
         self.__update_tags(instance, validated_data)
@@ -760,7 +760,8 @@ class ShopAllSettingsSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'error': 'شهرستان انتخاب شده معتبر نمی باشد.'})
         except City.DoesNotExist:
-            raise serializers.ValidationError({'error': 'شهر انتخاب شده معتبر نمی باشد.'})
+            raise serializers.ValidationError(
+                {'error': 'شهر انتخاب شده معتبر نمی باشد.'})
         return data
 
     def update(self, instance, validated_data):
@@ -913,7 +914,8 @@ class NewProfileSerializer(serializers.ModelSerializer):
         # TODO: I done as image for check birthday
         if 'BrithDay' in validated_data:
             birthday = validated_data.pop('BrithDay')
-            instance.BrithDay = jdatetime.date(birthday.year, birthday.month, birthday.day)
+            instance.BrithDay = jdatetime.date(
+                birthday.year, birthday.month, birthday.day)
         instance.user.first_name = user.get('first_name')
         instance.user.last_name = user.get('last_name')
         for prop in validated_data:
@@ -1022,32 +1024,6 @@ class UserImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserImage
         fields = ('id', 'image', 'title', 'description')
-
-
-class ShopStatisticSerializer(serializers.ModelSerializer):
-    products_count = serializers.SerializerMethodField()
-    register_datetime = serializers.SerializerMethodField()
-    total_sell = serializers.SerializerMethodField()
-    mobile_number = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Shop
-        fields = ['ID', 'Title', 'Slug', 'products_count',
-                  'register_datetime', 'total_sell', 'mobile_number']
-
-    def get_products_count(self, obj):
-        return obj.products_count
-
-    def get_register_datetime(self, obj):
-        return obj.DateCreate.strftime('%Y-%m-%d')
-
-    def get_total_sell(self, obj):
-        return obj.total_sell
-
-    def get_mobile_number(self, obj):
-        if obj.FK_ShopManager and hasattr(obj.FK_ShopManager, 'User_Profile'):
-            return obj.FK_ShopManager.User_Profile.MobileNumber
-        return None
 
 
 class CampaignShopSerializer(serializers.ModelSerializer):

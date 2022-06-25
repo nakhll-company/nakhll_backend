@@ -1,9 +1,12 @@
 from __future__ import unicode_literals
 import os
 
-import datetime, jdatetime, math, uuid, random, string, os
-from django.db.models.query import QuerySet
-from django.contrib.postgres.aggregates import ArrayAgg
+import datetime
+import math
+import uuid
+import random
+import string
+import os
 from django.http import Http404
 from django.db import models
 from django.db.models import F, Q, Count, UniqueConstraint
@@ -22,11 +25,11 @@ from django.shortcuts import reverse, get_object_or_404
 from django_jalali.db import models as jmodels
 from django.dispatch import receiver
 from colorfield.fields import ColorField
-from tinymce.models import HTMLField
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 from simple_history.models import HistoricalRecords
 from nakhll_market.interface import AlertInterface
+from nakhll.utils import datetime2jalali
 
 OUTOFSTOCK_LIMIT_NUM = 5
 
@@ -46,7 +49,9 @@ class PathAndRename():
 
     def __call__(self, instance, filename):
         ext = filename.split('.')[-1]
-        rand_strings = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(6))
+        rand_strings = ''.join(random.choice(
+            string.ascii_letters + string.digits)
+            for i in range(6))
         filename = '{}.{}'.format(rand_strings, ext)
 
         return os.path.join(self.path, filename)
@@ -59,7 +64,9 @@ class BuildReferenceCode():
         self.size = Code_Size
 
     def __call__(self):
-        random_str = ''.join(random.choice(string.ascii_lowercase + string.digits) for i in range(self.size))
+        random_str = ''.join(
+            random.choice(string.ascii_lowercase + string.digits)
+            for i in range(self.size))
 
         return (random_str)
 
@@ -82,7 +89,7 @@ class CategoryManager(models.Manager):
         return childs
 
     def parents_to_root(self, category):
-        if category.parent == None:
+        if category.parent is None:
             return [category]
         else:
             return self.parents_to_root(category.parent) + [category]
@@ -99,14 +106,19 @@ class CategoryManager(models.Manager):
         if shop:
             filter_query &= Q(products__FK_Shop__Slug=shop)
 
-        queryset = self.annotate(products_count=Count('products', filter=filter_query))
+        queryset = self.annotate(
+            products_count=Count(
+                'products',
+                filter=filter_query))
         return queryset.filter(products_count__gt=0).order_by('-products_count')
 
     def all_subcategories(self, categories):
         subcategories = []
         for category in categories:
             subcategories.append(category)
-            subcategories.extend(self.all_subcategories(category.childrens.all()))
+            subcategories.extend(
+                self.all_subcategories(
+                    category.childrens.all()))
         return subcategories
 
     def all_ordered(self):
@@ -119,21 +131,41 @@ class Category(models.Model):
         verbose_name_plural = "دسته بندی ها"
 
     name = models.CharField(verbose_name='عنوان دسته بندی', max_length=150)
-    slug = models.SlugField(verbose_name='شناسه دسته بندی', unique=True, db_index=True)
+    slug = models.SlugField(
+        verbose_name='شناسه دسته بندی',
+        unique=True,
+        db_index=True)
     description = models.TextField(verbose_name='درباره دسته بندی', blank=True)
-    image = models.ImageField(verbose_name='عکس دسته بندی', upload_to=PathAndRename('media/Pictures/Categories/'),
-                              help_text='عکس دسته بندی را اینجا وارد کنید', blank=True, null=True)
+    image = models.ImageField(
+        verbose_name='عکس دسته بندی',
+        upload_to=PathAndRename('media/Pictures/Categories/'),
+        help_text='عکس دسته بندی را اینجا وارد کنید',
+        blank=True,
+        null=True)
     image_thumbnail = ImageSpecField(source='image',
                                      processors=[ResizeToFill(175, 175)],
                                      format='JPEG',
                                      options={'quality': 60})
-    parent = models.ForeignKey('self', on_delete=models.SET_NULL, verbose_name='پدر', blank=True, null=True,
-                               related_name='childrens')
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        verbose_name='پدر',
+        blank=True,
+        null=True,
+        related_name='childrens')
     available = models.BooleanField(verbose_name='فعال', default=True)
-    created_at = models.DateTimeField(verbose_name='تاریخ ایجاد', auto_now_add=True)
-    updated_at = models.DateTimeField(verbose_name='تاریخ بروزرسانی', auto_now=True)
-    market_uuid = models.UUIDField(verbose_name='شناسه بازار', null=True, editable=False)
-    submarket_uuid = models.UUIDField(verbose_name='شناسه بازارچه', null=True, editable=False)
+    created_at = models.DateTimeField(
+        verbose_name='تاریخ ایجاد', auto_now_add=True)
+    updated_at = models.DateTimeField(
+        verbose_name='تاریخ بروزرسانی', auto_now=True)
+    market_uuid = models.UUIDField(
+        verbose_name='شناسه بازار',
+        null=True,
+        editable=False)
+    submarket_uuid = models.UUIDField(
+        verbose_name='شناسه بازارچه',
+        null=True,
+        editable=False)
     order = models.PositiveIntegerField(verbose_name='ترتیب', default=99999)
     objects = CategoryManager()
 
@@ -144,7 +176,10 @@ class Category(models.Model):
 # ----------------------------------------------------------------------------------------------------------------------------------
 
 class ShopManager(models.Manager):
-    FEW_HOURS_AGO = timezone.make_aware(datetime.datetime.now() - datetime.timedelta(hours=15))
+    FEW_HOURS_AGO = timezone.make_aware(
+        datetime.datetime.now() -
+        datetime.timedelta(
+            hours=15))
 
     def shop_managers_info(self):
         queryset = self.get_queryset()
@@ -178,12 +213,8 @@ class ShopManager(models.Manager):
 
         # Exclude the ones that have been created less than 15 Hours ago
         # Exclude Shops that have default Image
-        return queryset \
-                   .filter(Q(Publish=True), Q(Available=True), Q(DateCreate__lt=self.FEW_HOURS_AGO) \
-                           , Q(ShopProduct__Factor_Product__Factor_Products__OrderDate__gte=one_week_ago) \
-                           , ~Q(Image='static/Pictures/DefaultShop.png')) \
-                   .annotate(number_sale=Sum('ShopProduct__Factor_Product__ProductCount')) \
-                   .order_by('-number_sale')[:5]
+        return queryset .filter(Q(Publish=True), Q(Available=True), Q(DateCreate__lt=self.FEW_HOURS_AGO), Q(ShopProduct__Factor_Product__Factor_Products__OrderDate__gte=one_week_ago), ~Q(
+            Image='static/Pictures/DefaultShop.png')) .annotate(number_sale=Sum('ShopProduct__Factor_Product__ProductCount')) .order_by('-number_sale')[:5]
 
     def get_random_shops(self):
         # Shop.objects\
@@ -192,7 +223,7 @@ class ShopManager(models.Manager):
         # .filter(product_count__gt=1)\
         # .order_by('?')[:12]
         sql = '''
-            SELECT 
+            SELECT
                 "nakhll_market_shop"."ID",
                 "nakhll_market_shop"."FK_ShopManager_id",
                 "nakhll_market_shop"."Title",
@@ -218,15 +249,15 @@ class ShopManager(models.Manager):
                 "nakhll_market_shop"."CanselFirstDate",
                 "nakhll_market_shop"."LimitCancellationDate",
                 "nakhll_market_shop"."documents",
-                COUNT("nakhll_market_product"."ID") AS "product_count" 
-            FROM "nakhll_market_shop" 
-            LEFT OUTER JOIN 
-                "nakhll_market_product" ON ("nakhll_market_shop"."ID" = "nakhll_market_product"."FK_Shop_id") 
-            WHERE ("nakhll_market_shop"."Available" AND "nakhll_market_shop"."Publish" 
+                COUNT("nakhll_market_product"."ID") AS "product_count"
+            FROM "nakhll_market_shop"
+            LEFT OUTER JOIN
+                "nakhll_market_product" ON ("nakhll_market_shop"."ID" = "nakhll_market_product"."FK_Shop_id")
+            WHERE ("nakhll_market_shop"."Available" AND "nakhll_market_shop"."Publish"
                     AND "nakhll_market_shop"."DateCreate" > now() - '15 hours'::INTERVAL)
-            GROUP BY "nakhll_market_shop"."ID" 
-            HAVING COUNT("nakhll_market_product"."ID") > 1  
-            ORDER BY RANDOM() 
+            GROUP BY "nakhll_market_shop"."ID"
+            HAVING COUNT("nakhll_market_product"."ID") > 1
+            ORDER BY RANDOM()
             LIMIT 12
         '''
         # METHOD A:
@@ -239,7 +270,8 @@ class ShopManager(models.Manager):
 
         # METHOD D:
         shop_ids = Shop.objects.filter(Q(Publish=True), Q(Available=True), Q(ShopProduct__gt=1),
-                                       # Exclude the ones that have been created less than 15 Hours ago
+                                       # Exclude the ones that have been created
+                                       # less than 15 Hours ago
                                        Q(DateCreate__lt=self.FEW_HOURS_AGO),
                                        # Exclude Shops that have default Image
                                        ~Q(Image='static/Pictures/DefaultShop.png')).values_list('ID', flat=True)
@@ -254,25 +286,43 @@ class ShopManager(models.Manager):
 # Shop (حجره) Model
 class Shop(models.Model):
     objects = ShopManager()
-    ID = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
-    FK_ShopManager = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name='حجره دار',
-                                       related_name='ShopManager')
-    Title = models.CharField(max_length=100, verbose_name='عنوان حجره', db_index=True, unique=True)
-    Slug = models.SlugField(verbose_name='شناسه حجره', unique=True, db_index=True, allow_unicode=True)
+    ID = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        unique=True)
+    FK_ShopManager = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        verbose_name='حجره دار',
+        related_name='ShopManager')
+    Title = models.CharField(
+        max_length=100,
+        verbose_name='عنوان حجره',
+        db_index=True,
+        unique=True)
+    Slug = models.SlugField(
+        verbose_name='شناسه حجره',
+        unique=True,
+        db_index=True,
+        allow_unicode=True)
     Description = models.TextField(verbose_name='درباره حجره', blank=True)
-    Image = models.ImageField(verbose_name='عکس حجره',
-                              upload_to=PathAndRename('media/Pictures/Markets/SubMarkets/Shops/'),
-                              help_text='عکس حجره را اینجا وارد کنید', default='static/Pictures/DefaultShop.png',
-                              null=True)
+    Image = models.ImageField(
+        verbose_name='عکس حجره',
+        upload_to=PathAndRename('media/Pictures/Markets/SubMarkets/Shops/'),
+        help_text='عکس حجره را اینجا وارد کنید',
+        default='static/Pictures/DefaultShop.png', null=True)
     Image_thumbnail = ImageSpecField(source='Image',
                                      processors=[ResizeToFill(175, 175)],
                                      format='JPEG',
                                      options={'quality': 60})
-    NewImage = models.ImageField(verbose_name='عکس جدید حجره',
-                                 upload_to=PathAndRename('media/Pictures/Markets/SubMarkets/Shops/'), null=True,
-                                 blank=True)
-    ColorCode = models.CharField(max_length=9, verbose_name='کد رنگ', help_text='رنگ حجره را اینجا وارد کنید',
-                                 blank=True)
+    NewImage = models.ImageField(
+        verbose_name='عکس جدید حجره',
+        upload_to=PathAndRename('media/Pictures/Markets/SubMarkets/Shops/'),
+        null=True, blank=True)
+    ColorCode = models.CharField(
+        max_length=9, verbose_name='کد رنگ',
+        help_text='رنگ حجره را اینجا وارد کنید', blank=True)
     Bio = models.TextField(verbose_name='معرفی حجره دار', blank=True)
     # these are only for backup purposes
     state_old = models.CharField(
@@ -300,12 +350,21 @@ class Shop(models.Model):
         verbose_name='شهر',
         blank=True,
         null=True)
-    Location = models.CharField(verbose_name='موقعیت مکانی', max_length=150, blank=True,
-                                help_text='طول و عرض جغرافیایی')
+    Location = models.CharField(
+        verbose_name='موقعیت مکانی',
+        max_length=150,
+        blank=True,
+        help_text='طول و عرض جغرافیایی')
     Point = models.PositiveIntegerField(verbose_name='امتیاز حجره', default=0)
-    Holidays = models.CharField(verbose_name='روز های تعطیلی حجره', max_length=15, blank=True)
-    DateCreate = models.DateTimeField(verbose_name='تاریخ ثبت حجره', auto_now_add=True)
-    DateUpdate = models.DateTimeField(verbose_name='تاریخ بروزرسانی حجره', auto_now=True)
+    Holidays = models.CharField(
+        verbose_name='روز های تعطیلی حجره',
+        max_length=15,
+        blank=True)
+    DateCreate = models.DateTimeField(
+        verbose_name='تاریخ ثبت حجره',
+        auto_now_add=True)
+    DateUpdate = models.DateTimeField(
+        verbose_name='تاریخ بروزرسانی حجره', auto_now=True)
     in_campaign = models.BooleanField(verbose_name='در کمپین؟', default=False)
     # محدودیت های حجره
     AVAILABLE_STATUS = (
@@ -320,14 +379,31 @@ class Shop(models.Model):
         (True, 'در حال بررسی تغییرات'),
         (False, 'تغییری اعمال شده است'),
     )
-    Edite = models.BooleanField(verbose_name='وضعیت ویرایش حجره', choices=EDITE_STATUS, default=False)
-    Available = models.BooleanField(verbose_name='وضعیت ثبت حجره', choices=AVAILABLE_STATUS, default=True)
-    Publish = models.BooleanField(verbose_name='وضعیت انتشار حجره', choices=PUBLISH_STATUS, default=False)
-    FK_User = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='تایید کننده', related_name='Shop_Accept',
-                                blank=True, null=True)
-    CanselCount = models.PositiveIntegerField(verbose_name='تعداد لغو سفارشات حجره', default=0)
-    CanselFirstDate = models.DateField(verbose_name='تاریخ اولین لغو سفارش', null=True, blank=True)
-    LimitCancellationDate = models.DateField(verbose_name='تاریخ محدودیت لغو سفارشات', null=True, blank=True)
+    Edite = models.BooleanField(
+        verbose_name='وضعیت ویرایش حجره',
+        choices=EDITE_STATUS,
+        default=False)
+    Available = models.BooleanField(
+        verbose_name='وضعیت ثبت حجره',
+        choices=AVAILABLE_STATUS,
+        default=True)
+    Publish = models.BooleanField(
+        verbose_name='وضعیت انتشار حجره',
+        choices=PUBLISH_STATUS,
+        default=False)
+    FK_User = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        verbose_name='تایید کننده',
+        related_name='Shop_Accept',
+        blank=True,
+        null=True)
+    CanselCount = models.PositiveIntegerField(
+        verbose_name='تعداد لغو سفارشات حجره', default=0)
+    CanselFirstDate = models.DateField(
+        verbose_name='تاریخ اولین لغو سفارش', null=True, blank=True)
+    LimitCancellationDate = models.DateField(
+        verbose_name='تاریخ محدودیت لغو سفارشات', null=True, blank=True)
     documents = ArrayField(
         base_field=models.ImageField(
             verbose_name='عکس جدید حجره',
@@ -338,10 +414,16 @@ class Shop(models.Model):
         default=list,
         blank=True,
     )
-    show_contact_info = models.BooleanField('نمایش اطلاعات تماس حجره', default=False)
-    is_landing = models.BooleanField(verbose_name='صفحه حجره لندینگ است؟', default=False)
+    show_contact_info = models.BooleanField(
+        'نمایش اطلاعات تماس حجره', default=False)
+    is_landing = models.BooleanField(
+        verbose_name='صفحه حجره لندینگ است؟', default=False)
     has_product_group_add_edit_permission = models.BooleanField(
-        verbose_name='حجره دسترسی ایجاد و ویرایش محصول به صورت گروهی با استفاده از اکسل دارد؟', default=False)
+        verbose_name='حجره دسترسی ایجاد و ویرایش محصول به صورت گروهی با استفاده از اکسل دارد؟',
+        default=False)
+
+    def __str__(self):
+        return "{}".format(self.Title)
 
     @property
     def id(self):
@@ -397,8 +479,31 @@ class Shop(models.Model):
             return self.FK_ShopManager.User_Profile
         return None
 
-    def __str__(self):
-        return "{}".format(self.Title)
+    @property
+    def products(self):
+        return self.ShopProduct.all()
+
+    @property
+    def url(self):
+        return self.get_absolute_url
+
+    @property
+    def image_thumbnail_url(self):
+        return self.Image_thumbnail_url
+
+    @property
+    def products_count(self):
+        return self.get_products().count()
+
+    @property
+    def manager_mobile_number(self):
+        if self.FK_ShopManager and hasattr(self.FK_ShopManager, 'User_Profile'):
+            return self.FK_ShopManager.User_Profile.MobileNumber
+        return None
+
+    @property
+    def date_created(self):
+        return datetime2jalali(self.DateCreate)
 
     def get_absolute_url(self):
         return attach_domain(f'/shop/{self.Slug}/')
@@ -423,18 +528,6 @@ class Shop(models.Model):
                 category.append(category_item)
         category = list(dict.fromkeys(category))
         return category
-
-    @property
-    def url(self):
-        return self.get_absolute_url
-
-    @property
-    def image_thumbnail_url(self):
-        return self.Image_thumbnail_url
-
-    @property
-    def total_products(self):
-        return self.get_products().count()
 
     def is_available(self):
         return self.Available and self.Publish
@@ -609,7 +702,7 @@ class ProductManager(models.Manager):
             Price_float=Cast(F('Price'),
                              FloatField())).annotate(
             discount_ratio=(F('OldPrice_float') - F('Price_float')) /
-                           F('OldPrice_float')).order_by('-discount_ratio')
+            F('OldPrice_float')).order_by('-discount_ratio')
 
     def get_one_most_discount_precenetage_available_product_random(self):
         result = self.get_most_discount_precentage_available_product()
@@ -618,16 +711,16 @@ class ProductManager(models.Manager):
 
     def get_last_created_products(self):
         return Product.objects \
-                   .filter(Publish=True, Available=True, OldPrice=0, Status__in=['1', '2', '3'],
-                           DateCreate__lt=self.FEW_HOURS_AGO) \
-                   .order_by('-DateCreate')[:12]
+            .filter(Publish=True, Available=True, OldPrice=0, Status__in=['1', '2', '3'],
+                    DateCreate__lt=self.FEW_HOURS_AGO) \
+            .order_by('-DateCreate')[:12]
 
     def get_last_created_discounted_products(self):
         return Product.objects.filter(
             Publish=True, Available=True, Status__in=['1', '2', '3'],
             DateCreate__lt=self.FEW_HOURS_AGO).exclude(
             OldPrice=0).order_by('-DateCreate')[
-               : 16]
+            : 16]
 
     def available_products(self):
         return self.filter(
@@ -645,8 +738,8 @@ class ProductManager(models.Manager):
 
     def get_most_discount_precentage_products(self):
         return self \
-                   .get_most_discount_precentage_available_product() \
-                   .order_by('?')[:15]
+            .get_most_discount_precentage_available_product() \
+            .order_by('?')[:15]
 
     def get_products_in_same_factor(self, id):
         queryset = self.get_queryset()
@@ -705,7 +798,7 @@ class ProductManager(models.Manager):
     def has_enough_items_in_stock(product, count):
         ''' Check if product have enough items in stock '''
         return (product.Status == '1' and product.inventory >= count) \
-               or (product.Status in ['2', '3'])
+            or (product.Status in ['2', '3'])
 
     def is_product_list_valid(self, product_list):
         ''' Check if products in product_list is available, published and have enough in stock
@@ -719,7 +812,7 @@ class ProductManager(models.Manager):
         product_ids = [x.get('product').id for x in product_list]
         if self.filter(
                 Q(ID__in=product_ids) and (
-                        Q(Available=False) or Q(Publish=False)
+                    Q(Available=False) or Q(Publish=False)
                 )).exists():
             return False
         for item in product_list:
@@ -730,7 +823,7 @@ class ProductManager(models.Manager):
 
     @staticmethod
     def jsonify_product(product):
-        if type(product) == Product:
+        if isinstance(product, Product):
             product = [product]
         return serializers.serialize('json', product, ensure_ascii=False)
 
@@ -815,16 +908,27 @@ class Product(models.Model):
                                   processors=[ResizeToFill(450, 450)],
                                   format='JPEG',
                                   options={'quality': 60})
-    NewImage = models.ImageField(verbose_name='عکس جدید حجره',
-                                 upload_to=PathAndRename('media/Pictures/Markets/SubMarkets/Shops/Products/'),
-                                 null=True, blank=True)
-    Catalog = models.FileField(verbose_name='کاتالوگ محصول',
-                               upload_to=PathAndRename('media/Catalogs/Markets/SubMarkets/Shops/Products/'),
-                               help_text='کاتالوگ محصول خود را اینجا وارد کنید', null=True, blank=True)
-    FK_Shop = models.ForeignKey(Shop, on_delete=models.PROTECT, verbose_name='حجره',
-                                related_name='ShopProduct')
-    category = models.ForeignKey(Category, verbose_name='دسته بندی جدید', related_name='products',
-                                 on_delete=models.PROTECT, db_column='category_id')
+    NewImage = models.ImageField(
+        verbose_name='عکس جدید حجره',
+        upload_to=PathAndRename(
+            'media/Pictures/Markets/SubMarkets/Shops/Products/'),
+        null=True, blank=True)
+    Catalog = models.FileField(
+        verbose_name='کاتالوگ محصول',
+        upload_to=PathAndRename(
+            'media/Catalogs/Markets/SubMarkets/Shops/Products/'),
+        help_text='کاتالوگ محصول خود را اینجا وارد کنید', null=True, blank=True)
+    FK_Shop = models.ForeignKey(
+        Shop,
+        on_delete=models.PROTECT,
+        verbose_name='حجره',
+        related_name='ShopProduct')
+    category = models.ForeignKey(
+        Category,
+        verbose_name='دسته بندی جدید',
+        related_name='products',
+        on_delete=models.PROTECT,
+        db_column='category_id')
     Price = models.BigIntegerField(verbose_name='قیمت محصول')
     OldPrice = models.BigIntegerField(verbose_name='قیمت حذف محصول', default=0)
     # Product Weight Info
@@ -1059,9 +1163,9 @@ class Product(models.Model):
     def has_enough_items_in_stock(self, count):
         ''' Check if product have enough items in stock '''
         return (self.Status == '1' and self.inventory >= count) \
-               or (self.Status in ['2', '3'])
+            or (self.Status in ['2', '3'])
 
-    ## These properties are created for Torob API
+    # These properties are created for Torob API
     @property
     def page_url(self):
         url = f'/torob/products/{self.ID}/'
@@ -1082,9 +1186,9 @@ class Product(models.Model):
     @property
     def availability(self):
         return 'instock' if self.Available and self.Publish and \
-                            self.FK_Shop.is_available() and \
-                            (self.Status == '1' and self.inventory) or \
-                            (self.Status in ['2', '3']) else ''
+            self.FK_Shop.is_available() and \
+            (self.Status == '1' and self.inventory) or \
+            (self.Status in ['2', '3']) else ''
 
     @property
     def category_name(self):
@@ -1110,7 +1214,7 @@ class Product(models.Model):
             "4": 'موجود نیست',
         }
         return Status[self.Status] if (self.Status == '1' and self.inventory) \
-                                      or (self.Status in ['2', '3']) else Status['4']
+            or (self.Status in ['2', '3']) else Status['4']
 
     def get_sendtype(self):
         SendType = {
@@ -1138,29 +1242,29 @@ class Product(models.Model):
         # Get Discounted
         try:
             return int((self.OldPrice - self.Price) * 100 / self.OldPrice)
-        except:
+        except BaseException:
             return 0
 
     def get_product_net_weight(self):
         # Get Net Weight
         try:
             return self.Net_Weight
-        except:
+        except BaseException:
             return 'نا مشخص'
 
     def get_product_weight_with_packing(self):
         # Get Weight With Packing
         try:
             return self.Weight_With_Packing
-        except:
+        except BaseException:
             return 'نا مشخص'
 
     def get_product_dimensions(self):
         # Get Dimensions
         try:
-            return str(self.Length_With_Packaging) + ' * ' + str(self.Width_With_Packaging) + ' * ' + str(
-                self.Height_With_Packaging)
-        except:
+            return str(self.Length_With_Packaging) + ' * ' + str(
+                self.Width_With_Packaging) + ' * ' + str(self.Height_With_Packaging)
+        except BaseException:
             return 'نا مشخص'
 
     def get_product_weight_convert_to_int(self):
@@ -1169,31 +1273,34 @@ class Product(models.Model):
             net_weight = int(self.Net_Weight)
             weight_with_packing = int(self.Weight_With_Packing)
             this_sum = 0
-            if (weight_with_packing > net_weight) or (weight_with_packing == net_weight):
+            if (weight_with_packing > net_weight) or (
+                    weight_with_packing == net_weight):
                 this_sum += weight_with_packing
             else:
                 this_sum += net_weight
             return this_sum
-        except:
+        except BaseException:
             return 0
 
     def get_product_packing_volume_convert_to_int(self):
         # Get Product Packing Volume Convert To Int
         try:
-            vloume = int(self.Length_With_Packaging) * int(self.Width_With_Packaging) * int(self.Height_With_Packaging)
+            vloume = int(self.Length_With_Packaging) * int(
+                self.Width_With_Packaging) * int(self.Height_With_Packaging)
             this_vloume = 0
             if vloume > 3000:
                 this_vloume += math.ceil(vloume / 3000) * 50
             elif vloume != 0:
                 this_vloume += 50
             return this_vloume
-        except:
+        except BaseException:
             return 0
 
     def get_total_product_weight(self):
         try:
-            return self.get_product_weight_convert_to_int() + self.get_product_packing_volume_convert_to_int()
-        except:
+            return self.get_product_weight_convert_to_int(
+            ) + self.get_product_packing_volume_convert_to_int()
+        except BaseException:
             return 0
 
     def check_product_post_status(self):
@@ -1211,7 +1318,7 @@ class Product(models.Model):
     def get_image(self):
         try:
             return attach_domain(self.Image.url)
-        except:
+        except BaseException:
             return self.default_image_url()
 
     def get_image_alt(self):
@@ -1221,7 +1328,7 @@ class Product(models.Model):
         try:
             url = self.Image_thumbnail.url
             return attach_domain(url)
-        except:
+        except BaseException:
             url = "https://nakhll.com/media/Pictures/default.jpg"
             return url
 
@@ -1229,7 +1336,7 @@ class Product(models.Model):
         try:
             url = self.Image_medium.url
             return attach_domain(url)
-        except:
+        except BaseException:
             url = "https://nakhll.com/media/Pictures/default.jpg"
             return url
 
@@ -1239,7 +1346,7 @@ class Product(models.Model):
                 'shop_slug': self.FK_Shop.Slug,
                 'product_slug': self.Slug
             })
-        except:
+        except BaseException:
             return '/'
 
     def get_point(self):
@@ -1248,7 +1355,7 @@ class Product(models.Model):
             for item in self.FK_Points.all():
                 this_point += item.Point
             return round(this_point / self.get_point_count(), 2)
-        except:
+        except BaseException:
             return 0.0
 
     def Point(self):
@@ -1259,12 +1366,12 @@ class Product(models.Model):
 
     def get_related_products(self):
         return Product.objects \
-                   .filter(
-            Available=True,
-            Publish=True,
-            Status__in=['1', '2', '3'],
-            FK_Category__in=self.FK_Category.all()
-        ).order_by('?')[:12]
+            .filter(
+                Available=True,
+                Publish=True,
+                Status__in=['1', '2', '3'],
+                FK_Category__in=self.FK_Category.all()
+            ).order_by('?')[:12]
 
     def get_product_categories(self):
         raise NotImplementedError()
@@ -1303,10 +1410,14 @@ class Tag(models.Model):
     #TODO: Document
     """
     name = models.CharField(max_length=127, verbose_name=_('نام تگ'),
-    error_messages={
-        'max_length': _('نام تگ باید کمتر از 127 کاراکتر باشد.'),}
+                            error_messages={
+        'max_length': _('نام تگ باید کمتر از 127 کاراکتر باشد.'), }
     )
-    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, verbose_name=_('حجره'), related_name="tags")
+    shop = models.ForeignKey(
+        Shop,
+        on_delete=models.CASCADE,
+        verbose_name=_('حجره'),
+        related_name="tags")
 
     class Meta:
         unique_together = ('name', 'shop')
@@ -1321,8 +1432,16 @@ class ProductTag(models.Model):
     """
         #TODO: Document
     """
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name=_('محصول'), related_name="product_tags")
-    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, verbose_name=_('تگ'), related_name='product_tags')
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        verbose_name=_('محصول'),
+        related_name="product_tags")
+    tag = models.ForeignKey(
+        Tag,
+        on_delete=models.CASCADE,
+        verbose_name=_('تگ'),
+        related_name='product_tags')
 
     class Meta:
         unique_together = ('product', 'tag')
@@ -1335,25 +1454,48 @@ class ProductTag(models.Model):
 
 # Product Banner (گالری محصول) Model
 class ProductBanner(models.Model):
-    FK_Product = models.ForeignKey(Product, null=True, on_delete=models.SET_NULL, verbose_name='نام محصول',
-                                   related_name='Product_Banner')
-    Title = models.CharField(verbose_name='برچسب روی بنر', max_length=100, null=True)
-    Description = models.TextField(verbose_name='درباره بنر', max_length=350, blank=True)
-    URL = models.URLField(verbose_name='لینک', help_text='لینکی که در صورت کلیک به آن منتقل می شود', blank=True)
-    Image = models.ImageField(verbose_name='بنر محصول',
-                              upload_to=PathAndRename('media/Pictures/Markets/SubMarkets/Shops/Products/Banners/'),
-                              help_text='بنر محصول را اینجا وارد کنید')
+    FK_Product = models.ForeignKey(
+        Product,
+        null=True,
+        on_delete=models.SET_NULL,
+        verbose_name='نام محصول',
+        related_name='Product_Banner')
+    Title = models.CharField(
+        verbose_name='برچسب روی بنر',
+        max_length=100,
+        null=True)
+    Description = models.TextField(
+        verbose_name='درباره بنر',
+        max_length=350,
+        blank=True)
+    URL = models.URLField(
+        verbose_name='لینک',
+        help_text='لینکی که در صورت کلیک به آن منتقل می شود',
+        blank=True)
+    Image = models.ImageField(
+        verbose_name='بنر محصول',
+        upload_to=PathAndRename(
+            'media/Pictures/Markets/SubMarkets/Shops/Products/Banners/'),
+        help_text='بنر محصول را اینجا وارد کنید')
     Image_medium = ImageSpecField(source='Image',
                                   processors=[ResizeToFill(450, 450)],
                                   format='JPEG',
                                   options={'quality': 60})
-    NewImage = models.ImageField(verbose_name='عکس جدید حجره',
-                                 upload_to=PathAndRename('media/Pictures/Markets/SubMarkets/Shops/Products/Banners/'),
-                                 null=True, blank=True)
-    BannerBuilder = models.CharField(verbose_name='نام تولید کننده بنر', max_length=120, blank=True)
+    NewImage = models.ImageField(
+        verbose_name='عکس جدید حجره',
+        upload_to=PathAndRename(
+            'media/Pictures/Markets/SubMarkets/Shops/Products/Banners/'),
+        null=True, blank=True)
+    BannerBuilder = models.CharField(
+        verbose_name='نام تولید کننده بنر',
+        max_length=120,
+        blank=True)
     BannerURL = models.URLField(verbose_name='لینک تولید کننده بنر', blank=True)
-    DateCreate = models.DateTimeField(verbose_name='تاریخ بارگذاری بنر محصول', auto_now_add=True)
-    DateUpdate = models.DateTimeField(verbose_name='تاریخ بروزرسانی بنر محصول', auto_now=True)
+    DateCreate = models.DateTimeField(
+        verbose_name='تاریخ بارگذاری بنر محصول',
+        auto_now_add=True)
+    DateUpdate = models.DateTimeField(
+        verbose_name='تاریخ بروزرسانی بنر محصول', auto_now=True)
     AVAILABLE_STATUS = (
         (True, 'فعال'),
         (False, 'غیر فعال'),
@@ -1366,11 +1508,25 @@ class ProductBanner(models.Model):
         (True, 'در حال بررسی تغییرات'),
         (False, 'تغییری اعمال شده است'),
     )
-    Edite = models.BooleanField(verbose_name='وضعیت ویرایش بنر حجره', choices=EDITE_STATUS, default=False)
-    Available = models.BooleanField(verbose_name='وضعیت بارگذاری بنر محصول', choices=AVAILABLE_STATUS, default=True)
-    Publish = models.BooleanField(verbose_name='وضعیت انتشار بنر محصول', choices=PUBLISH_STATUS, default=False)
-    FK_User = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='تایید کننده',
-                                related_name='Product_Banner_Accept', blank=True, null=True)
+    Edite = models.BooleanField(
+        verbose_name='وضعیت ویرایش بنر حجره',
+        choices=EDITE_STATUS,
+        default=False)
+    Available = models.BooleanField(
+        verbose_name='وضعیت بارگذاری بنر محصول',
+        choices=AVAILABLE_STATUS,
+        default=True)
+    Publish = models.BooleanField(
+        verbose_name='وضعیت انتشار بنر محصول',
+        choices=PUBLISH_STATUS,
+        default=False)
+    FK_User = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        verbose_name='تایید کننده',
+        related_name='Product_Banner_Accept',
+        blank=True,
+        null=True)
 
     @property
     def image(self):
@@ -1381,7 +1537,7 @@ class ProductBanner(models.Model):
             i = self.Image_medium.url
             url = self.Image_medium.url
             return attach_domain(url)
-        except:
+        except BaseException:
             url = "https://nakhll.com/media/Pictures/default.jpg"
             return url
 
@@ -1401,19 +1557,45 @@ class Comment(models.Model):
         (False, 'منفی'),
         (True, 'مثبت'),
     )
-    Type = models.BooleanField(verbose_name='نوع نظر', choices=TYPE_STATUS, default=True)
-    FK_UserAdder = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='کاربر', related_name='User_Comment',
-                                     null=True)
-    FK_Product = models.ForeignKey(Product, on_delete=models.SET_NULL, verbose_name='محصول',
-                                   related_name='Product_Comment', blank=True, null=True)
+    Type = models.BooleanField(
+        verbose_name='نوع نظر',
+        choices=TYPE_STATUS,
+        default=True)
+    FK_UserAdder = models.ForeignKey(
+        User, on_delete=models.SET_NULL, verbose_name='کاربر',
+        related_name='User_Comment', null=True)
+    FK_Product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        verbose_name='محصول',
+        related_name='Product_Comment',
+        blank=True,
+        null=True)
     Description = models.TextField(verbose_name='توضیخات نظر')
-    FK_Like = models.ManyToManyField(User, verbose_name='لایک کننده', related_name='Comment_Like', blank=True)
-    FK_Pater = models.ForeignKey('self', on_delete=models.SET_NULL, verbose_name='ریپلای شده',
-                                 related_name='Comment_Pater', blank=True, null=True)
-    Available = models.BooleanField(verbose_name='وضعیت انتشار نظر', default=False)
-    DateCreate = models.DateTimeField(verbose_name='تاریخ ثبت نظر', auto_now_add=True)
-    FK_User = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='تایید کننده',
-                                related_name='Comment_Accept', blank=True, null=True)
+    FK_Like = models.ManyToManyField(
+        User,
+        verbose_name='لایک کننده',
+        related_name='Comment_Like',
+        blank=True)
+    FK_Pater = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        verbose_name='ریپلای شده',
+        related_name='Comment_Pater',
+        blank=True,
+        null=True)
+    Available = models.BooleanField(
+        verbose_name='وضعیت انتشار نظر', default=False)
+    DateCreate = models.DateTimeField(
+        verbose_name='تاریخ ثبت نظر',
+        auto_now_add=True)
+    FK_User = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        verbose_name='تایید کننده',
+        related_name='Comment_Accept',
+        blank=True,
+        null=True)
 
     @property
     def user(self):
@@ -1437,8 +1619,7 @@ class Comment(models.Model):
 
     @property
     def date_create(self):
-        jalali_datetime = jdatetime.datetime.fromgregorian(datetime=self.DateCreate, locale='fa_IR')
-        return jalali_datetime.strftime('%Y/%m/%d %H:%M')
+        return datetime2jalali(self.DateCreate)
 
     @property
     def type(self):
@@ -1483,12 +1664,25 @@ class Comment(models.Model):
             # Get User Profile
             this_profile = get_object_or_404(Profile, FK_User=self.FK_UserAdder)
             return this_profile.Image_thumbnail_url()
-        except:
+        except BaseException:
             url = "https://nakhll.com/media/Pictures/avatar.png"
             return url
 
 
+class ProfileQuerySet(models.QuerySet):
+    def shop_count(self):
+        return self.annotate(shop_count=Count('FK_User__ShopManager'))
+
+    def have_shop(self):
+        return self.filter(shop_count__gte=1)
+
+    def have_not_shop(self):
+        return self.filter(shop_count=0)
+
+
 class ProfileManager(models.Manager):
+    def get_queryset(self):
+        return ProfileQuerySet(self.model, using=self._db)
 
     def get_user_by_mobile_number(self, mobile_number: str) -> User:
         queryset = self.get_queryset()
@@ -1500,7 +1694,8 @@ class ProfileManager(models.Manager):
         else:
             return False
 
-    def set_user_password_by_mobile_number(self, mobile_number, password) -> User:
+    def set_user_password_by_mobile_number(
+            self, mobile_number, password) -> User:
         user = self.get_user_by_mobile_number(mobile_number)
         user.set_password(password)
         user.save()
@@ -1509,7 +1704,7 @@ class ProfileManager(models.Manager):
     def create_profile(self, mobile_number, user, reference_code, user_ip):
         '''
         this function create user and all related objects
-        it must be transactional because we create 3 objects 
+        it must be transactional because we create 3 objects
         or we don't need none of them.
         TODO MAKE IT TRANSACTIONAL
         '''
@@ -1542,44 +1737,96 @@ class Profile(models.Model):
         ('8', 'هیچ کدام'),
     )
     objects = ProfileManager()
-    ID = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
-    FK_User = models.OneToOneField(User, on_delete=models.SET_NULL, verbose_name='کاربر', related_name='User_Profile',
-                                   null=True)
-    Sex = models.CharField(verbose_name='جنسیت', max_length=1, choices=SEX_STATUS, default='0')
-    CountrPreCode = models.CharField(verbose_name='کد کشور', max_length=6, default='098')
-    MobileNumber = models.CharField(verbose_name='شماره موبایل', max_length=11, unique=True)
-    ZipCode = models.CharField(verbose_name='کد پستی', max_length=10, blank=True)
-    NationalCode = models.CharField(verbose_name='کد ملی', max_length=10, unique=True, blank=True, null=True)
+    ID = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        unique=True)
+    FK_User = models.OneToOneField(
+        User,
+        on_delete=models.SET_NULL,
+        verbose_name='کاربر',
+        related_name='User_Profile',
+        null=True)
+    Sex = models.CharField(
+        verbose_name='جنسیت',
+        max_length=1,
+        choices=SEX_STATUS,
+        default='0')
+    CountrPreCode = models.CharField(
+        verbose_name='کد کشور',
+        max_length=6,
+        default='098')
+    MobileNumber = models.CharField(
+        verbose_name='شماره موبایل',
+        max_length=11,
+        unique=True)
+    ZipCode = models.CharField(
+        verbose_name='کد پستی',
+        max_length=10,
+        blank=True)
+    NationalCode = models.CharField(
+        verbose_name='کد ملی',
+        max_length=10,
+        unique=True,
+        blank=True,
+        null=True)
     Address = models.TextField(verbose_name='آدرس', blank=True)
     State = models.CharField(verbose_name='استان', max_length=50, blank=True)
-    BigCity = models.CharField(verbose_name='شهرستان', max_length=50, blank=True)
+    BigCity = models.CharField(
+        verbose_name='شهرستان',
+        max_length=50,
+        blank=True)
     City = models.CharField(verbose_name='شهر', max_length=50, blank=True)
-    Location = models.CharField(verbose_name='موقعیت مکانی', max_length=150, blank=True,
-                                help_text='طول و عرض جغرافیایی')
+    Location = models.CharField(
+        verbose_name='موقعیت مکانی',
+        max_length=150,
+        blank=True,
+        help_text='طول و عرض جغرافیایی')
     BrithDay = jmodels.jDateField(verbose_name='تاریخ تولد', null=True)
-    FaxNumber = models.CharField(verbose_name='شماره فکس', max_length=8, blank=True)
-    CityPerCode = models.CharField(verbose_name='پیش شماره', max_length=6, blank=True, default='034')
-    PhoneNumber = models.CharField(verbose_name='شماره تلفن ثابت', max_length=8, blank=True)
+    FaxNumber = models.CharField(
+        verbose_name='شماره فکس',
+        max_length=8,
+        blank=True)
+    CityPerCode = models.CharField(
+        verbose_name='پیش شماره',
+        max_length=6,
+        blank=True,
+        default='034')
+    PhoneNumber = models.CharField(
+        verbose_name='شماره تلفن ثابت',
+        max_length=8,
+        blank=True)
     Bio = models.CharField(verbose_name='درباره من', max_length=250, blank=True)
-    Image = models.ImageField(verbose_name='پروفایل', upload_to=PathAndRename('media/Pictures/Profile/'), null=True,
-                              default='static/Pictures/DefaultProfile.png')
+    Image = models.ImageField(
+        verbose_name='پروفایل',
+        upload_to=PathAndRename('media/Pictures/Profile/'),
+        null=True, default='static/Pictures/DefaultProfile.png')
     Image_thumbnail = ImageSpecField(source='Image',
                                      processors=[ResizeToFill(175, 175)],
                                      format='JPEG',
                                      options={'quality': 60})
-    ImageNationalCard = models.ImageField(verbose_name="عکس کارت ملی",
-                                          upload_to=PathAndRename('media/Pictures/NationalCard/'), null=True,
-                                          blank=True)
-    ImageNationalCardUnverified = models.ImageField(verbose_name="عکس کارت ملی تایید نشده",
-                                                    upload_to=PathAndRename('media/Pictures/NationalCard/'), null=True,
-                                                    blank=True)
-    UserReferenceCode = models.CharField(verbose_name='کد شما', max_length=6, unique=True,
-                                         default=BuildReferenceCode(6))
+    ImageNationalCard = models.ImageField(
+        verbose_name="عکس کارت ملی",
+        upload_to=PathAndRename('media/Pictures/NationalCard/'),
+        null=True, blank=True)
+    ImageNationalCardUnverified = models.ImageField(
+        verbose_name="عکس کارت ملی تایید نشده",
+        upload_to=PathAndRename('media/Pictures/NationalCard/'),
+        null=True, blank=True)
+    UserReferenceCode = models.CharField(
+        verbose_name='کد شما', max_length=6, unique=True,
+        default=BuildReferenceCode(6))
     Point = models.PositiveIntegerField(verbose_name='امتیاز کاربر', default=0)
-    TutorialWebsite = models.CharField(verbose_name='نحوه آشنایی با سایت', max_length=1, choices=TUTORIALWEB_TYPE,
-                                       blank=True, default='8')
-    ReferenceCode = models.CharField(verbose_name='کد معرف', max_length=6, blank=True)
-    IPAddress = models.CharField(verbose_name='آدرس ای پی', max_length=15, blank=True)
+    TutorialWebsite = models.CharField(
+        verbose_name='نحوه آشنایی با سایت', max_length=1,
+        choices=TUTORIALWEB_TYPE, blank=True, default='8')
+    ReferenceCode = models.CharField(
+        verbose_name='کد معرف', max_length=6, blank=True)
+    IPAddress = models.CharField(
+        verbose_name='آدرس ای پی',
+        max_length=15,
+        blank=True)
 
     # Output Customization Based On UserName (ID)
     def __str__(self):
@@ -1590,7 +1837,7 @@ class Profile(models.Model):
             i = self.Image_thumbnail.url
             url = self.Image_thumbnail.url
             return attach_domain(url)
-        except:
+        except BaseException:
             url = "https://nakhll.com/media/Pictures/avatar.png"
             return url
 
@@ -1599,7 +1846,7 @@ class Profile(models.Model):
             i = self.ImageNationalCard.url
             url = self.ImageNationalCard.url
             return attach_domain(url)
-        except:
+        except BaseException:
             url = "https://nakhll.com/static-django/images/image_upload.jpg"
             return url
 
@@ -1614,8 +1861,8 @@ class Profile(models.Model):
         raise NotImplementedError()
 
     def chack_user_bank_account(self):
-        if (self.get_bank_account_name() == None) or (self.get_credit_card_number() == None) or (
-                self.get_shaba_number() == None):
+        if (self.get_bank_account_name() is None) or (
+                self.get_credit_card_number() is None) or (self.get_shaba_number() is None):
             return True
         else:
             return False
@@ -1630,24 +1877,26 @@ class Profile(models.Model):
         return Shop.objects.filter(FK_ShopManager=self.FK_User, Publish=True)
 
     def get_user_products(self):
-        return Product.objects.filter(FK_Shop__in=self.get_user_shops(), Publish=True)
+        return Product.objects.filter(
+            FK_Shop__in=self.get_user_shops(),
+            Publish=True)
 
     def get_state_name(self):
         try:
             return State.objects.get(id=self.State).name
-        except:
+        except BaseException:
             return None
 
     def get_bigcity_name(self):
         try:
             return BigCity.objects.get(id=self.BigCity).name
-        except:
+        except BaseException:
             return None
 
     def get_city_name(self):
         try:
             return City.objects.get(id=self.City).name
-        except:
+        except BaseException:
             return None
 
     @property
@@ -1657,6 +1906,14 @@ class Profile(models.Model):
     @property
     def user(self):
         return self.FK_User
+
+    @property
+    def first_name(self):
+        return self.user.first_name
+
+    @property
+    def last_name(self):
+        return self.user.last_name
 
     @property
     def sex(self):
@@ -1724,7 +1981,8 @@ class Profile(models.Model):
 
     @property
     def image_national_card(self):
-        return attach_domain(self.ImageNationalCard.url) if self.ImageNationalCard else None
+        return attach_domain(
+            self.ImageNationalCard.url) if self.ImageNationalCard else None
 
     @property
     def user_reference_code(self):
@@ -1750,6 +2008,10 @@ class Profile(models.Model):
     def shops(self):
         return self.FK_User.ShopManager.all()
 
+    @property
+    def date_joined(self):
+        return datetime2jalali(self.FK_User.date_joined, date_only=True)
+
     # Ordering With DateCreate
     class Meta:
         ordering = ('ID',)
@@ -1759,18 +2021,37 @@ class Profile(models.Model):
 
 # Slider (اسلایدر) Model
 class Slider(models.Model):
-    FK_Creator = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='ثبت کننده',
-                                   related_name='Slider_Create', null=True)
-    Title = models.CharField(verbose_name='برچسب روی اسلایدر', max_length=100, db_index=True)
-    Description = models.TextField(verbose_name='درباره اسلایدر', max_length=350, blank=True)
-    ShowInfo = models.BooleanField(verbose_name='وضعیت نمایش اطلاعات اسلایدر', default=True,
-                                   help_text='اگر می خواهید عنوان و توضیحات بنر روی آن نمایش داده شود، این گزینه را فعال کنید.')
-    URL = models.URLField(verbose_name='لینک', help_text='لینکی که در صورت کلیک به آن منتقل می شود', blank=True)
-    Image = models.ImageField(verbose_name='عکس اسلایدر', upload_to=PathAndRename('media/Pictures/Sliders/'),
-                              help_text='اسلایدر را اینجا وارد کنید')
+    FK_Creator = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        verbose_name='ثبت کننده',
+        related_name='Slider_Create',
+        null=True)
+    Title = models.CharField(
+        verbose_name='برچسب روی اسلایدر',
+        max_length=100,
+        db_index=True)
+    Description = models.TextField(
+        verbose_name='درباره اسلایدر',
+        max_length=350,
+        blank=True)
+    ShowInfo = models.BooleanField(
+        verbose_name='وضعیت نمایش اطلاعات اسلایدر', default=True,
+        help_text='اگر می خواهید عنوان و توضیحات بنر روی آن نمایش داده شود، این گزینه را فعال کنید.')
+    URL = models.URLField(
+        verbose_name='لینک',
+        help_text='لینکی که در صورت کلیک به آن منتقل می شود',
+        blank=True)
+    Image = models.ImageField(
+        verbose_name='عکس اسلایدر',
+        upload_to=PathAndRename('media/Pictures/Sliders/'),
+        help_text='اسلایدر را اینجا وارد کنید')
     Location = models.IntegerField(verbose_name='مکان اسلایدر')
-    DateCreate = models.DateTimeField(verbose_name='تاریخ بارگذاری اسلایدر', auto_now_add=True)
-    DtatUpdate = models.DateTimeField(verbose_name='تاریخ بروزرسانی اسلایدر', auto_now=True)
+    DateCreate = models.DateTimeField(
+        verbose_name='تاریخ بارگذاری اسلایدر',
+        auto_now_add=True)
+    DtatUpdate = models.DateTimeField(
+        verbose_name='تاریخ بروزرسانی اسلایدر', auto_now=True)
 
     AVAILABLE_STATUS = (
         (True, 'فعال'),
@@ -1780,11 +2061,25 @@ class Slider(models.Model):
         (True, 'منتشر شده'),
         (False, 'در انتظار تایید'),
     )
-    Available = models.BooleanField(verbose_name='وضعیت بارگذاری فیلم محصول', choices=AVAILABLE_STATUS, default=True)
-    Publish = models.BooleanField(verbose_name='وضعیت انتشار فیلم محصول', choices=PUBLISH_STATUS, default=False)
-    FK_User = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='تایید کننده',
-                                related_name='Slider_Accept', blank=True, null=True)
-    BannerBuilder = models.CharField(verbose_name='نام تولید کننده بنر', max_length=120, blank=True)
+    Available = models.BooleanField(
+        verbose_name='وضعیت بارگذاری فیلم محصول',
+        choices=AVAILABLE_STATUS,
+        default=True)
+    Publish = models.BooleanField(
+        verbose_name='وضعیت انتشار فیلم محصول',
+        choices=PUBLISH_STATUS,
+        default=False)
+    FK_User = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        verbose_name='تایید کننده',
+        related_name='Slider_Accept',
+        blank=True,
+        null=True)
+    BannerBuilder = models.CharField(
+        verbose_name='نام تولید کننده بنر',
+        max_length=120,
+        blank=True)
     BannerURL = models.URLField(verbose_name='لینک تولید کننده بنر', blank=True)
 
     @property
@@ -1814,7 +2109,7 @@ class Slider(models.Model):
     def get_image(self):
         try:
             return attach_domain(self.Image.url)
-        except:
+        except BaseException:
             return None
 
     # Output Customization Based On Title
@@ -1835,8 +2130,13 @@ class Alert(models.Model):
         EDIT_PROFILE = '1'
         PAYMENT_ERROR = '35'
 
-    FK_User = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='ثبت کننده',
-                                related_name='User_Registrar_Alert', blank=True, null=True)
+    FK_User = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        verbose_name='ثبت کننده',
+        related_name='User_Registrar_Alert',
+        blank=True,
+        null=True)
     PART_TYPE = (
         ('0', 'ایجاد پروفایل'),
         ('1', 'ویرایش پروفایل'),
@@ -1875,26 +2175,46 @@ class Alert(models.Model):
         ('34', 'ارسال سفارش‌های جداگانه'),
         ('35', 'خطای پرداخت'),
     )
-    Part = models.CharField(verbose_name='بخش', choices=PART_TYPE, max_length=2, default='0')
+    Part = models.CharField(
+        verbose_name='بخش',
+        choices=PART_TYPE,
+        max_length=2,
+        default='0')
     Slug = models.TextField(verbose_name='شناسه بخش', blank=True, null=True)
     SEEN_STATUS = (
         (True, 'دیده شده'),
         (False, 'دیده نشده'),
     )
-    Seen = models.BooleanField(verbose_name='وضعیت بازدید', choices=SEEN_STATUS, default=False)
+    Seen = models.BooleanField(
+        verbose_name='وضعیت بازدید',
+        choices=SEEN_STATUS,
+        default=False)
     STATUS = (
         (True, 'ثبت تغییرات'),
         (False, 'عدم ثبت تغییرات'),
     )
-    alert_description = models.TextField(verbose_name='توضیحات', blank=True, null=True,
-                                         help_text='توضیحات در مورد هشدار')
-    Status = models.BooleanField(verbose_name='وضعیت تغییرات', choices=STATUS, null=True)
-    DateCreate = models.DateTimeField(verbose_name='تاریخ ثبت هشدار', auto_now_add=True)
-    DateUpdate = models.DateTimeField(verbose_name='تاریخ ثبت تغییرات', auto_now=True)
-    Description = models.TextField(verbose_name='توضیحات', blank=True,
-                                   help_text='در صورت عدم پذیرش تغییرات انجام شده، لطفا دلایل خودت را اینجا وارد نمایید.')
-    FK_Staff = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='ثبت کننده',
-                                 related_name='Alert_User_Published', blank=True, null=True)
+    alert_description = models.TextField(
+        verbose_name='توضیحات', blank=True, null=True,
+        help_text='توضیحات در مورد هشدار')
+    Status = models.BooleanField(
+        verbose_name='وضعیت تغییرات',
+        choices=STATUS,
+        null=True)
+    DateCreate = models.DateTimeField(
+        verbose_name='تاریخ ثبت هشدار',
+        auto_now_add=True)
+    DateUpdate = models.DateTimeField(
+        verbose_name='تاریخ ثبت تغییرات', auto_now=True)
+    Description = models.TextField(
+        verbose_name='توضیحات', blank=True,
+        help_text='در صورت عدم پذیرش تغییرات انجام شده، لطفا دلایل خودت را اینجا وارد نمایید.')
+    FK_Staff = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        verbose_name='ثبت کننده',
+        related_name='Alert_User_Published',
+        blank=True,
+        null=True)
 
     def __str__(self):
         return "{} - {}".format(self.FK_User, self.FK_Staff)
@@ -1975,7 +2295,10 @@ class State(models.Model):
 class BigCity(models.Model):
     name = models.CharField(verbose_name='نام شهرستان', max_length=127)
     code = models.IntegerField(verbose_name='کد شهرستان')
-    state = models.ForeignKey(State, related_name='big_city', on_delete=models.CASCADE)
+    state = models.ForeignKey(
+        State,
+        related_name='big_city',
+        on_delete=models.CASCADE)
 
     class Meta:
         ordering = ('id',)
@@ -1996,7 +2319,10 @@ class BigCity(models.Model):
 class City(models.Model):
     name = models.CharField(verbose_name='نام شهر', max_length=127)
     code = models.IntegerField(verbose_name='کد شهر')
-    big_city = models.ForeignKey(BigCity, related_name='city', on_delete=models.CASCADE)
+    big_city = models.ForeignKey(
+        BigCity,
+        related_name='city',
+        on_delete=models.CASCADE)
 
     class Meta:
         ordering = ('id',)
@@ -2032,12 +2358,21 @@ class DashboardBanner(models.Model):
     def __str__(self):
         return self.image.name
 
-    image = models.ImageField(verbose_name='عکس بنر', upload_to=PathAndRename('media/Pictures/Dashboard/Banner/'))
+    image = models.ImageField(
+        verbose_name='عکس بنر',
+        upload_to=PathAndRename('media/Pictures/Dashboard/Banner/'))
     url = models.URLField(max_length=100, verbose_name='لینک بنر', null=True)
-    staff_user = models.ForeignKey(User, verbose_name='کارشناس', on_delete=models.SET_NULL, null=True,
-                                   related_name='dashboard_banners')
-    created_datetime = models.DateTimeField(verbose_name='تاریخ ثبت', auto_now=False, auto_now_add=True)
-    publish_status = models.CharField(max_length=3, choices=PublishStatuses.choices, default=PublishStatuses.PUBLISH)
+    staff_user = models.ForeignKey(
+        User,
+        verbose_name='کارشناس',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='dashboard_banners')
+    created_datetime = models.DateTimeField(
+        verbose_name='تاریخ ثبت', auto_now=False, auto_now_add=True)
+    publish_status = models.CharField(
+        max_length=3, choices=PublishStatuses.choices,
+        default=PublishStatuses.PUBLISH)
     objects = DashboardBannerManager()
 
 
@@ -2074,36 +2409,62 @@ class LandingPageSchema(models.Model):
         ICON = 8, 'آیکن'
 
     def __str__(self):
-        return 'type:{}, order:{}, data:{}'.format(self.get_component_type_display(), self.order, self.data)
+        return 'type:{}, order:{}, data:{}'.format(
+            self.get_component_type_display(),
+            self.order, self.data)
 
-    component_type = models.IntegerField(verbose_name='نوع برنامه بندی', choices=ComponentTypes.choices,
-                                         default=ComponentTypes.ONE_BANNER)
+    component_type = models.IntegerField(
+        verbose_name='نوع برنامه بندی',
+        choices=ComponentTypes.choices,
+        default=ComponentTypes.ONE_BANNER)
     data = models.URLField(verbose_name='داده ها', max_length=255)
-    title = models.CharField(verbose_name='عنوان', max_length=127, null=True, blank=True)
-    subtitle = models.CharField(verbose_name='زیر عنوان', max_length=127, null=True, blank=True)
-    url = models.URLField(max_length=255, verbose_name='لینک', null=True, blank=True)
-    background_color = ColorField(verbose_name='رنگ پس زمینه', null=True, blank=True)
-    image = models.ImageField(verbose_name='عکس', upload_to=PathAndRename('media/Pictures/LandingPage/Schema/'),
-                              null=True, blank=True)
+    title = models.CharField(
+        verbose_name='عنوان',
+        max_length=127,
+        null=True,
+        blank=True)
+    subtitle = models.CharField(
+        verbose_name='زیر عنوان',
+        max_length=127,
+        null=True,
+        blank=True)
+    url = models.URLField(
+        max_length=255,
+        verbose_name='لینک',
+        null=True,
+        blank=True)
+    background_color = ColorField(
+        verbose_name='رنگ پس زمینه',
+        null=True,
+        blank=True)
+    image = models.ImageField(verbose_name='عکس', upload_to=PathAndRename(
+        'media/Pictures/LandingPage/Schema/'), null=True, blank=True)
     order = models.IntegerField(verbose_name='ترتیب', default=0)
-    staff_user = models.ForeignKey(User, verbose_name='کارشناس', on_delete=models.SET_NULL, null=True, blank=True,
-                                   related_name='landing_page_schemas')
-    created_datetime = models.DateTimeField(verbose_name='تاریخ ثبت', auto_now=False, auto_now_add=True)
-    publish_status = models.CharField(max_length=3, choices=PublishStatuses.choices, default=PublishStatuses.PUBLISH)
-    is_mobile = models.BooleanField(verbose_name='دستگاه موبایل است؟', default=True)
+    staff_user = models.ForeignKey(
+        User,
+        verbose_name='کارشناس',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='landing_page_schemas')
+    created_datetime = models.DateTimeField(
+        verbose_name='تاریخ ثبت', auto_now=False, auto_now_add=True)
+    publish_status = models.CharField(
+        max_length=3, choices=PublishStatuses.choices,
+        default=PublishStatuses.PUBLISH)
+    is_mobile = models.BooleanField(
+        verbose_name='دستگاه موبایل است؟', default=True)
     objects = LandingPageSchemaManager()
 
 
 class ShopPageSchemaManager(LandingPageSchemaManager):
     def get_published_schema(self, request, shop_id):
-        return self.get_for_device(request).filter(shop=shop_id,
-                                                   publish_status=ShopPageSchema.PublishStatuses.PUBLISH).order_by(
-            'order')
+        return self.get_for_device(request).filter(
+            shop=shop_id, publish_status=ShopPageSchema.PublishStatuses.PUBLISH).order_by('order')
 
     def get_unpublished_schema(self, request, shop_id):
-        return self.get_for_device(request).filter(shop=shop_id,
-                                                   publish_status=ShopPageSchema.PublishStatuses.PREVIEW).order_by(
-            'order')
+        return self.get_for_device(request).filter(
+            shop=shop_id, publish_status=ShopPageSchema.PublishStatuses.PREVIEW).order_by('order')
 
 
 class ShopPageSchema(LandingPageSchema):
@@ -2111,7 +2472,11 @@ class ShopPageSchema(LandingPageSchema):
         verbose_name = 'برنامه بندی صفحه حجره دار'
         verbose_name_plural = 'برنامه بندی صفحه حجره دار'
 
-    shop = models.ForeignKey(Shop, verbose_name='فروشگاه', on_delete=models.CASCADE, related_name='shop_page_schemas')
+    shop = models.ForeignKey(
+        Shop,
+        verbose_name='فروشگاه',
+        on_delete=models.CASCADE,
+        related_name='shop_page_schemas')
     objects = ShopPageSchemaManager()
 
 
@@ -2120,16 +2485,24 @@ class UserImage(models.Model):
         verbose_name = 'تصویر بارگذاری شده کاربر'
         verbose_name_plural = 'تصویر بارگذاری شده کاربر'
 
-    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='uploaded_images', verbose_name='کاربر')
+    profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name='uploaded_images',
+        verbose_name='کاربر')
     title = models.CharField(max_length=100, verbose_name='عنوان', blank=True)
     description = models.TextField(verbose_name='توضیحات', blank=True)
-    image = models.ImageField(verbose_name='تصویر بارگذاری شده',
-                              upload_to=PathAndRename('media/Pictures/User/UploadedImages/'))
-    image_thumbnail = ImageSpecField(source='image', processors=[ResizeToFill(180, 180)], format='JPEG',
-                                     options={'quality': 60})
+    image = models.ImageField(
+        verbose_name='تصویر بارگذاری شده',
+        upload_to=PathAndRename('media/Pictures/User/UploadedImages/'))
+    image_thumbnail = ImageSpecField(
+        source='image', processors=[ResizeToFill(180, 180)],
+        format='JPEG', options={'quality': 60})
     publish = models.BooleanField(verbose_name='منتشر شده?', default=True)
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاریخ ایجاد')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='تاریخ ویرایش')
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name='تاریخ ایجاد')
+    updated_at = models.DateTimeField(
+        auto_now=True, verbose_name='تاریخ ویرایش')
 
     def __str__(self):
         return f'{self.profile.MobileNumber}: {self.title} ({self.image})'
@@ -2166,13 +2539,28 @@ class LandingPage(models.Model):
         INACTIVE = 0, 'غیرفعال'
         ACTIVE = 1, 'فعال'
 
-    slug = models.CharField(max_length=100, verbose_name='نام صفحه', unique=True)
-    status = models.IntegerField(verbose_name='وضعیت', choices=Statuses.choices, default=Statuses.ACTIVE)
-    staff = models.ForeignKey(User, verbose_name='کارشناس', on_delete=models.SET_NULL, null=True, blank=True,
-                              related_name='landing_pages')
-    page_data = models.TextField(verbose_name=_('داده‌های صفحه'), null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاریخ ایجاد')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='تاریخ ویرایش')
+    slug = models.CharField(
+        max_length=100,
+        verbose_name='نام صفحه',
+        unique=True)
+    status = models.IntegerField(
+        verbose_name='وضعیت',
+        choices=Statuses.choices,
+        default=Statuses.ACTIVE)
+    staff = models.ForeignKey(
+        User,
+        verbose_name='کارشناس',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='landing_pages')
+    page_data = models.TextField(
+        verbose_name=_('داده‌های صفحه'),
+        null=True, blank=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name='تاریخ ایجاد')
+    updated_at = models.DateTimeField(
+        auto_now=True, verbose_name='تاریخ ویرایش')
 
     def __str__(self):
         return self.page_slug
@@ -2183,15 +2571,28 @@ class LandingImage(models.Model):
         verbose_name = 'تصویر صفحه فرود'
         verbose_name_plural = 'تصویر صفحه فرود'
 
-    landing_page = models.ForeignKey(LandingPage, verbose_name='صفحه فرود', on_delete=models.CASCADE,
-                                     related_name='images')
-    image = models.ImageField(verbose_name='تصویر', upload_to=PathAndRename('media/Pictures/Landing/'))
-    image_thumbnail = ImageSpecField(source='image', processors=[ResizeToFill(180, 180)], format='JPEG',
-                                     options={'quality': 60})
-    staff = models.ForeignKey(User, verbose_name='کارشناس', on_delete=models.SET_NULL, null=True, blank=True,
-                              related_name='landing_images')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاریخ ایجاد')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='تاریخ ویرایش')
+    landing_page = models.ForeignKey(
+        LandingPage,
+        verbose_name='صفحه فرود',
+        on_delete=models.CASCADE,
+        related_name='images')
+    image = models.ImageField(
+        verbose_name='تصویر',
+        upload_to=PathAndRename('media/Pictures/Landing/'))
+    image_thumbnail = ImageSpecField(
+        source='image', processors=[ResizeToFill(180, 180)],
+        format='JPEG', options={'quality': 60})
+    staff = models.ForeignKey(
+        User,
+        verbose_name='کارشناس',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='landing_images')
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name='تاریخ ایجاد')
+    updated_at = models.DateTimeField(
+        auto_now=True, verbose_name='تاریخ ویرایش')
 
     def __str__(self):
         return f'{self.landing_page.page_slug}: {self.image}'

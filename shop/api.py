@@ -1,21 +1,18 @@
-from django.db.models.expressions import F
 from django.http.response import Http404
-from excel_response import ExcelResponse
 from django.utils import timezone
 from django.utils.translation import ugettext as _
-from rest_framework import serializers, status, mixins, permissions, viewsets
-from rest_framework.decorators import action, authentication_classes, permission_classes
+from rest_framework import status, mixins, permissions, viewsets
+from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from django_filters import rest_framework as filters
+from nakhll.utils import excel_response
 from invoice.filters import InvoiceFilter
 from invoice.models import Invoice
-from invoice.permissions import IsInvoiceOwner
 from invoice.serializers import InvoiceProviderRetrieveSerializer
 from nakhll_market.models import Shop
 from nakhll_market.paginators import StandardPagination
-from payoff.exceptions import NoAddressException, InvoiceExpiredException,\
-    InvalidInvoiceStatusException, OutOfPostRangeProductsException
+from shop.resources import ProductResource
 from .models import ShopAdvertisement, ShopFeature, ShopFeatureInvoice, ShopLanding, PinnedURL
 from .serializers import (
     ShopAdvertisementSerializer,
@@ -31,8 +28,10 @@ from .serializers import (
 from .permissions import IsInvoiceProvider, IsShopOwner, IsPinnedURLOwner, ShopLandingPermission
 from .mixins import MultipleFieldLookupMixin
 
+
 class ExtendedPagination(StandardPagination):
     page_size = 200
+
 
 class ShopFeatureViewSet(viewsets.GenericViewSet,
                          mixins.RetrieveModelMixin, mixins.ListModelMixin):
@@ -191,28 +190,7 @@ class ShopViewSet(viewsets.GenericViewSet):
     @action(detail=True, methods=['get'])
     def products_as_excel(self, request, Slug=None):
         shop = self.get_object()
-        shop_products = shop.ShopProduct.annotate(
-            عنوان=F('Title'),
-            بارکد=F('barcode'),
-            قیمت=F('Price'),
-            قیمت_قبل=F('OldPrice'),
-            موجودی=F('Inventory'),
-            وزن=F('Net_Weight'),
-            وزن_با_بسته_بندی=F('Weight_With_Packing'),
-            دسته_بندی=F('category_id'),
-            وضعیت_انتشار=F('Publish'),
-        ).values(
-            'عنوان',
-            'بارکد',
-            'قیمت',
-            'قیمت_قبل',
-            'وزن',
-            'وزن_با_بسته_بندی',
-            'موجودی',
-            'دسته_بندی',
-            'وضعیت_انتشار',
-        )
-        return ExcelResponse(data=shop_products)
+        return excel_response(ProductResource, shop.products, 'products')
 
 
 class ShopAdvertisementViewSet(
