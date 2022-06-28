@@ -11,6 +11,9 @@ from django.contrib.auth.models import Permission, User
 from django.db.models import Count
 from nakhll import utils
 from nakhll_market.models import (
+    State,
+    BigCity,
+    City,
     LandingPageSchema,
     Category,
     ShopPageSchema,
@@ -25,7 +28,7 @@ from nakhll_market.models import (
     Slider,
     Tag,
     ProductTag)
-from nakhll_market.resources import ProfileResource
+from nakhll_market.resources import ProfileResource, ShopAdminResource
 
 
 admin.site.site_header = 'مدیریت بازار نخل'
@@ -56,7 +59,7 @@ class ProfileHasShopFilter(admin.SimpleListFilter):
         if self.value() == 'no':
             return queryset.have_not_shop()
 
-# profile admin panel
+
 @admin.register(Profile)
 class ProfileAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('FK_User', 'first_name', 'last_name', 'date_joined')
@@ -99,33 +102,71 @@ class ProfileAdmin(ExportActionMixin, admin.ModelAdmin):
 
 
 @admin.register(Shop)
-class ShopAdmin(admin.ModelAdmin):
+class ShopAdmin(ExportActionMixin, admin.ModelAdmin):
+    autocomplete_fields = (
+        'State',
+        'BigCity',
+        'City',
+        'FK_User'
+    )
     list_display = (
         'Title',
         'Slug',
-        'City',
+        'FK_ShopManager',
+        'manager_full_name',
+        'manager_last_login',
         'State',
-        'Point',
-        'DateCreate',
-        'Available',
+        'City',
+        'date_created',
+        'date_updated',
         'Publish',
+        # 'products_count', # for the sake of performance
+        # 'total_sell',
+        # 'last_sell_date',
     )
+    list_display_links = ('FK_ShopManager',)
     list_filter = (
-        'City',
-        'State',
         'Publish',
-        'Available',
         'DateCreate',
-        'DateUpdate')
-    search_fields = ('Title', 'Slug')
-    ordering = ['ID', 'DateCreate', 'DateUpdate']
+        'DateUpdate'
+    )
+    search_fields = ('Title', 'Slug', 'FK_ShopManager')
+    ordering = ('-DateCreate', '-DateUpdate')
     raw_id_fields = ('FK_ShopManager',)
+    readonly_fields = ('FK_ShopManager',)
+    resource_class = ShopAdminResource
 
-    def DateCreate(self, obj):
-        return localtime(obj.DateCreate).strftime('%Y-%m-%d %H:%M:%S')
+    @admin.display(ordering='DateCreate', description='تاریخ ایجاد')
+    def date_created(self, obj):
+        return obj.date_created
 
-    def DateUpdate(self, obj):
-        return localtime(obj.DateUpdate).strftime('%Y-%m-%d %H:%M:%S')
+    @admin.display(ordering='DateUpdate', description='تاریخ ویرایش')
+    def date_updated(self, obj):
+        return obj.date_updated
+
+    @admin.display(ordering='products_count', description='تعداد محصولات')
+    def products_count(self, obj):
+        return obj.products_count
+
+    @admin.display(ordering='manager_full_name',
+                   description='نام و نام خانوادگی مدیر')
+    def manager_full_name(self, obj):
+        return obj.manager_full_name
+
+    @admin.display(ordering='manager_last_login',
+                   description='آخرین ورود به سایت توسط مدیر')
+    def manager_last_login(self, obj):
+        return obj.manager_last_login
+
+    def get_queryset(self, request: HttpRequest):
+        return super().get_queryset(request)\
+            .select_related('FK_ShopManager')\
+            .select_related('State')\
+            .select_related('BigCity')\
+            .select_related('City')\
+            .select_related('City__big_city')\
+            .select_related('City__big_city__state')\
+
 
 
 class ProductBannerInline(admin.StackedInline):
@@ -344,3 +385,24 @@ class ProductTagAdmin(admin.ModelAdmin):
     list_display = ['id', 'tag', 'product']
     search_fields = ['tag__name']
     autocomplete_fields = ['product', 'tag']
+
+
+@admin.register(State)
+class StateAdmin(admin.ModelAdmin):
+    list_display = ['name']
+    search_fields = ['name']
+    readonly_fields = ['id', 'name', 'code']
+
+
+@admin.register(BigCity)
+class BigCityAdmin(admin.ModelAdmin):
+    list_display = ['name', 'state']
+    search_fields = ['name']
+    readonly_fields = ['id', 'name', 'code']
+
+
+@admin.register(City)
+class CityAdmin(admin.ModelAdmin):
+    list_display = ['name', 'big_city']
+    search_fields = ['name']
+    readonly_fields = ['id', 'name', 'big_city', 'code']

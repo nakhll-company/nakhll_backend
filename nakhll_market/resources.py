@@ -81,3 +81,73 @@ class ShopStatisticResource(resources.ModelResource):
                              )
                              )
         )
+
+
+class ShopAdminResource(resources.ModelResource):
+    title = Field(
+        attribute='title',
+        column_name='عنوان',
+        readonly=True)
+    slug = Field(
+        attribute='slug',
+        column_name='شناسه',
+        readonly=True)
+    date_created = Field(
+        attribute='date_created',
+        column_name='تاریخ ساخت',
+        readonly=True)
+    date_updated = Field(
+        attribute='date_updated',
+        column_name='تاریخ بروزرسانی',
+        readonly=True)
+    state = Field(
+        attribute='state',
+        column_name='استان',
+        readonly=True)
+    city = Field(
+        attribute='city',
+        column_name='شهر',
+        readonly=True)
+    products_count = Field(
+        attribute='products_count',
+        column_name='تعداد محصول',
+        readonly=True)
+    total_sell = Field(
+        attribute='total_sell',
+        column_name='فروش حجره',
+        readonly=True)
+    last_sell_date = Field(
+        attribute='last_sell_date',
+        column_name='تاریخ آخرین فروش',
+        readonly=True)
+    manager_full_name = Field(
+        attribute='manager_full_name',
+        column_name='نام و نام خانوادگی مدیر فروشگاه',
+        readonly=True)
+    manager_mobile_number = Field(
+        attribute='manager_mobile_number',
+        column_name='شماره مدیر فروشگاه',
+        readonly=True)
+    manager_last_login = Field(
+        attribute='manager_last_login',
+        column_name='تاریخ آخرین ورود مدیر فروشگاه',
+        readonly=True)
+
+    class Meta:
+        model = Shop
+        fields = (
+            'title',
+            'slug',
+            'date_created',
+            'date_updated',
+            'state',
+            'city',
+            'products_count',
+            'total_sell',
+            'last_sell_date',
+            'manager_full_name',
+            'manager_mobile_number',
+            'manager_last_login')
+
+    def get_queryset(self):
+        return Shop.objects.select_related('FK_ShopManager')

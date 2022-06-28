@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 import os
-
+from functools import cached_property
 import datetime
 import math
 import uuid
@@ -496,14 +496,40 @@ class Shop(models.Model):
         return self.get_products().count()
 
     @property
+    def date_created(self):
+        return datetime2jalali(self.DateCreate)
+
+    @property
+    def date_updated(self):
+        return datetime2jalali(self.DateUpdate)
+
+    @property
+    def total_sell(self):
+        return self.invoice_model.objects.shop_total_sell_amount(self)
+
+    @property
+    def last_sell_date(self):
+        return self.invoice_model.objects.shop_last_sell_date(self)
+
+    @property
+    def manager_last_login(self):
+        return datetime2jalali(self.FK_ShopManager.last_login)
+
+    @property
     def manager_mobile_number(self):
         if self.FK_ShopManager and hasattr(self.FK_ShopManager, 'User_Profile'):
             return self.FK_ShopManager.User_Profile.MobileNumber
         return None
 
     @property
-    def date_created(self):
-        return datetime2jalali(self.DateCreate)
+    def manager_full_name(self):
+        manager = self.FK_ShopManager
+        return f'{manager.first_name} {manager.last_name}'
+
+    @cached_property
+    def invoice_model(self):
+        from invoice.models import Invoice
+        return Invoice
 
     def get_absolute_url(self):
         return attach_domain(f'/shop/{self.Slug}/')
@@ -557,11 +583,11 @@ class Shop(models.Model):
         return category
 
     def get_products(self):
-        return Product.objects.filter(
-            Available=True, Publish=True, FK_Shop=self)
+        return self.ShopProduct.filter(
+            Publish=True)
 
     def get_all_products(self):
-        return Product.objects.filter(FK_Shop=self)
+        return self.ShopProduct.all()
 
     def get_all_products_for_view(self):
         this_shop_product = list(

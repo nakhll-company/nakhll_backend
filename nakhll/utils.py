@@ -118,6 +118,8 @@ def excel_response(resource, queryset=None, filename='report'):
 
 
 def datetime2jalali(datetime, date_only=False):
+    if datetime is None:
+        return None
     date_time_format = '%Y/%m/%d %H:%M'
     date_format = '%Y/%m/%d'
     format = date_format if date_only else date_time_format
