@@ -75,9 +75,10 @@ class ProfileAdmin(ExportActionMixin, admin.ModelAdmin):
         'ImageNationalCard',
     )
     search_fields = (
-        'MobileNumber__icontains',
-        'FK_User__first_name__icontains',
-        'FK_User__last_name__icontains')
+        'MobileNumber',
+        'FK_User__first_name',
+        'FK_User__last_name')
+    search_help_text = 'جستجو بر اساس شماره موبایل و نام و نام خانوادگی حجره کاربر'
     resource_class = ProfileResource
 
     def get_queryset(self, request: HttpRequest):
@@ -130,7 +131,8 @@ class ShopAdmin(ExportActionMixin, admin.ModelAdmin):
         'DateCreate',
         'DateUpdate'
     )
-    search_fields = ('Title', 'Slug', 'FK_ShopManager')
+    search_fields = ('Title', 'Slug', 'FK_ShopManager__username')
+    search_help_text = 'جستجو براساس عنوان و شناسه حجره یا نام کاربری مدیر'
     ordering = ('-DateCreate', '-DateUpdate')
     raw_id_fields = ('FK_ShopManager',)
     readonly_fields = ('FK_ShopManager',)
