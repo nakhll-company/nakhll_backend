@@ -1,19 +1,29 @@
 from django.utils.translation import ugettext as _
 from rest_framework import permissions, viewsets, mixins
 from logistic.models import Address, ShopLogisticUnit, ShopLogisticUnitConstraint, ShopLogisticUnitCalculationMetric
-from logistic.serializers import (AddressSerializer, ShopLogisticUnitCalculationMetricSerializer,
-                                  ShopLogisticUnitConstraintReadSerializer,
-                                  ShopLogisticUnitConstraintWriteSerializer, ShopLogisticUnitFullSerializer)
+from logistic.serializers import (
+    AddressReadSerializer,
+    AddressWriteSerializer,
+    ShopLogisticUnitCalculationMetricSerializer,
+    ShopLogisticUnitConstraintReadSerializer,
+    ShopLogisticUnitConstraintWriteSerializer,
+    ShopLogisticUnitFullSerializer)
 from logistic.permissions import IsAddressOwner, IsShopOwner
 from nakhll_market.models import Shop
 
 class AddressViewSet(viewsets.ModelViewSet):
-    serializer_class = AddressSerializer
+    serializer_class = AddressReadSerializer
     permission_classes = [IsAddressOwner, permissions.IsAuthenticated ]
     lookup_field = 'id'
 
     def get_queryset(self):
         return Address.objects.filter(user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return AddressReadSerializer
+        else:
+            return AddressWriteSerializer
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

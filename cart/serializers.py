@@ -3,7 +3,7 @@ from cart.models import Cart, CartItem
 from coupon.models import Coupon
 from coupon.serializers import CouponSerializer
 from logistic.models import Address
-from logistic.serializers import AddressSerializer
+from logistic.serializers import AddressReadSerializer
 from nakhll_market.models import Product
 from nakhll_market.serializers import ProductSerializer
 
@@ -47,7 +47,7 @@ class CartItemReadSerializer(serializers.ModelSerializer):
 class CartSerializer(serializers.ModelSerializer):
     ordered_items = CartItemReadSerializer(many=True, read_only=True)
     count = serializers.SerializerMethodField()
-    address = AddressSerializer(read_only=True)
+    address = AddressReadSerializer(read_only=True)
     coupon_details = serializers.SerializerMethodField()
     class Meta:
         model = Cart

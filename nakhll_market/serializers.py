@@ -1,6 +1,6 @@
 from email import message
 from invoice.models import Invoice
-from logistic.serializers import AddressSerializer
+from logistic.serializers import AddressReadSerializer
 from nakhll.utils import get_dict
 from nakhll_market.serializer_fields import Base64ImageField
 from nakhll_market.validators import validate_iran_national_code
@@ -976,7 +976,7 @@ class UserOrderSerializer(serializers.ModelSerializer):
         source='address.receiver_full_name')
     receiver_mobile = serializers.ReadOnlyField(
         source='address.receiver_mobile_number')
-    address = AddressSerializer(read_only=True)
+    address = AddressReadSerializer(read_only=True)
 
     class Meta:
         model = Invoice

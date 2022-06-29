@@ -3,14 +3,11 @@ import jdatetime
 import json
 from rest_framework import serializers
 from .models import Invoice, InvoiceItem
-from cart.models import Cart
-from cart.serializers import CartSerializer
 from logistic.models import Address
-from logistic.serializers import AddressSerializer, ShopOwnerAddressSerializer
+from logistic.serializers import AddressReadSerializer, ShopOwnerAddressReadSerializer
 from coupon.models import Coupon
 from coupon.serializers import CouponUsageSerializer
 from nakhll_market.serializers import UserSerializer
-from nakhll_market.models import attach_domain
 
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
@@ -87,7 +84,7 @@ class InvoiceWriteSerializer(serializers.ModelSerializer):
 
 
 class InvoiceRetrieveSerializer(serializers.ModelSerializer):
-    address = ShopOwnerAddressSerializer(many=False, read_only=True)
+    address = ShopOwnerAddressReadSerializer(many=False, read_only=True)
     coupon_usages = CouponUsageSerializer(read_only=True, many=True)
     user = UserSerializer(many=False, read_only=True)
     items = serializers.SerializerMethodField(method_name='get_invoie_items')
@@ -144,7 +141,7 @@ class InvoiceRetrieveSerializer(serializers.ModelSerializer):
 
 
 class InvoiceProviderRetrieveSerializer(serializers.ModelSerializer):
-    address = AddressSerializer(many=False, read_only=True)
+    address = AddressReadSerializer(many=False, read_only=True)
     coupon_usages = CouponUsageSerializer(read_only=True, many=True)
     user = UserSerializer(many=False, read_only=True)
     items = serializers.SerializerMethodField(method_name='get_invoie_items')

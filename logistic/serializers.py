@@ -1,33 +1,57 @@
 from django.db.models.expressions import Case, Value, When
-import logistic
 from django.db.models import fields
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from logistic.models import Address, ShopLogisticUnit, ShopLogisticUnitConstraint, ShopLogisticUnitCalculationMetric
 from nakhll_market.models import Product, Shop, State, BigCity, City
 from nakhll_market.serializer_fields import Base64ImageField
+from restapi.serializers import BigCitySerializer, CitySerializer, StateSerializer
+from nakhll_market.mixins import DriveBigCityAndStateFromCityMixin
 
-
-class AddressSerializer(serializers.ModelSerializer):
+class AddressReadSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
-    state = serializers.SlugRelatedField(
-        slug_field='name', queryset=State.objects.all())
-    big_city = serializers.SlugRelatedField(
-        slug_field='name', queryset=BigCity.objects.all())
-    city = serializers.SlugRelatedField(
-        slug_field='name', queryset=City.objects.all())
+    state = StateSerializer(many=False, read_only=True)
+    big_city = BigCitySerializer(many=False, read_only=True)
+    city = CitySerializer(many=False, read_only=True)
 
     class Meta:
         model = Address
-        fields = ('id', 'user', 'state', 'big_city', 'city', 'zip_code', 'address',
-                  'phone_number', 'receiver_full_name', 'receiver_mobile_number',)
-        read_only_fields = ('id', 'user')
+        fields = (
+            'id',
+            'user',
+            'city',
+            'state',
+            'big_city',
+            'zip_code',
+            'address',
+            'phone_number',
+            'receiver_full_name',
+            'receiver_mobile_number',
+        )
+        read_only_fields = ('id', 'user',)
 
     def get_user(self, obj):
         return obj.user.first_name + ' ' + obj.user.last_name
 
 
-class ShopOwnerAddressSerializer(AddressSerializer):
+class AddressWriteSerializer(
+        DriveBigCityAndStateFromCityMixin,
+        serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = (
+            'id',
+            'city',
+            'zip_code',
+            'address',
+            'phone_number',
+            'receiver_full_name',
+            'receiver_mobile_number',
+        )
+        read_only_fields = ('id',)
+
+
+class ShopOwnerAddressReadSerializer(AddressReadSerializer):
     class Meta:
         model = Address
         fields = ('id', 'user', 'state', 'big_city', 'city', 'zip_code',
