@@ -948,7 +948,7 @@ class PublicShopsViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
 
     def get_queryset(self):
         return Shop.objects.public_shops().annotate(
-            products=ArrayAgg('ShopProduct__Slug'))
+            products_slug=ArrayAgg('ShopProduct__Slug'))
 
     def list(self, request, *args, **kwargs):
         shops = self.get_queryset()

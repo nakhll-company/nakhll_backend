@@ -1008,14 +1008,11 @@ class ProductLastStateSerializer(serializers.ModelSerializer):
 
 
 class ShopSlugSerializer(serializers.ModelSerializer):
-    products = serializers.SerializerMethodField()
+    products_slug = serializers.ListField()
 
     class Meta:
         model = Shop
-        fields = ('Slug', 'products')
-
-    def get_products(self, obj):
-        return obj.products
+        fields = ('Slug', 'products_slug')
 
 
 class UserImageSerializer(serializers.ModelSerializer):
