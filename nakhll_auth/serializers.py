@@ -10,12 +10,13 @@ from .models import AuthRequest
 class BeginAuthSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuthRequest
-        fields = ('mobile', 'auth_key', 'mobile_status', )
+        fields = ('mobile', 'auth_key', 'mobile_status', 'referral_code')
         read_only_fields = ('auth_key', 'mobile_status', )
     
     def to_representation(self, obj):
         ret = super(BeginAuthSerializer, self).to_representation(obj)
         ret.pop('mobile')
+        ret.pop('referral_code')
         return ret
 
 class CompleteAuthSerializer(serializers.ModelSerializer):

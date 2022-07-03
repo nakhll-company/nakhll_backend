@@ -38,6 +38,7 @@ class AuthRequest(models.Model):
         FORGOT_PASSWORD = 'forgotpass', 'فراموشی کلمه عبور'
 
     mobile = models.CharField(max_length=11, validators=[mobile_number_validator])
+    referral_code = models.CharField(max_length=6, null=True)
     sms_code = models.CharField(max_length=6, null=True, blank=True)
     auth_key = models.CharField(max_length=32, default=generate_uuid_code)
     auth_secret = models.CharField(max_length=32, null=True, blank=True)

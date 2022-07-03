@@ -28,9 +28,10 @@ class BeginAuthViewSet(viewsets.GenericViewSet):
         serializer = BeginAuthSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         mobile = serializer.validated_data.get('mobile')
+        referral_code = serializer.validated_data.get('referral_code', None)
         mobile_status = self._get_mobile_status(mobile)
         if mobile_status == AuthRequest.MobileStatuses.NOT_REGISTERED:
-            self._create_user(mobile)
+            self._create_user(mobile, referral_code)
         sms_code = None if mobile_status == AuthRequest.MobileStatuses.LOGIN_WITH_PASSWORD\
             else self._generate_and_send_sms_code(mobile)
         serializer.save(request_type=AuthRequest.RequestTypes.LOGIN_REGISTER,
@@ -83,10 +84,21 @@ class BeginAuthViewSet(viewsets.GenericViewSet):
         except Profile.DoesNotExist:
             return None
 
-    def _create_user(self, mobile):
+    def _create_user(self, mobile, referral_code):
+        referrer = self._get_referrer(referral_code)
         user = User.objects.create_user(username=mobile)
-        Profile.objects.create(FK_User=user, MobileNumber=mobile)
+        Profile.objects.create(
+            FK_User=user,
+            MobileNumber=mobile,
+            referrer=referrer)
         user.save()
+
+    def _get_referrer(self, referral_code):
+        try:
+            referrer_profile = Profile.objects.get(refer_code=referral_code)
+            return referrer_profile.FK_User
+        except BaseException:
+            None
 
     def _update_username_to_mobile(self, user, mobile):
         if not user:
