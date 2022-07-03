@@ -96,7 +96,7 @@ class ProfileSerializer(ModelSerializer):
             'fax_number',
             'city_per_code',
             'image_national_card',
-            'user_reference_code',
+            'referral_link',
             'point',
             'tutorial_website',
             'reference_code',

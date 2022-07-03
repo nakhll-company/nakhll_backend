@@ -419,7 +419,7 @@ class Migration(migrations.Migration):
                 ('PhoneNumber', models.CharField(blank=True, max_length=8, verbose_name='شماره تلفن ثابت')),
                 ('Bio', models.CharField(blank=True, max_length=250, verbose_name='درباره من')),
                 ('Image', models.ImageField(default='static/Pictures/DefaultProfile.png', null=True, upload_to=nakhll_market.models.PathAndRename('media/Pictures/Profile/'), verbose_name='پروفایل')),
-                ('UserReferenceCode', models.CharField(default=nakhll_market.models.BuildReferenceCode(6), max_length=6, unique=True, verbose_name='کد شما')),
+                ('UserReferenceCode', models.CharField(default=nakhll_market.models.build_refer_code(6), max_length=6, unique=True, verbose_name='کد شما')),
                 ('Point', models.PositiveIntegerField(default=0, verbose_name='امتیاز کاربر')),
                 ('TutorialWebsite', models.CharField(blank=True, choices=[('0', 'موتور های جستجو'), ('1', 'حجره داران'), ('2', 'شبکه های اجتماعی'), ('3', 'کاربران'), ('4', 'رسانه ها'), ('5', 'تبلیغات'), ('6', 'NOD'), ('7', 'سایر')], max_length=1, verbose_name='نحوه آشنایی با سایت')),
                 ('ReferenceCode', models.CharField(blank=True, max_length=6, verbose_name='کد معرف')),

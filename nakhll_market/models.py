@@ -2012,8 +2012,8 @@ class Profile(models.Model):
             self.ImageNationalCard.url) if self.ImageNationalCard else None
 
     @property
-    def user_reference_code(self):
-        return self.refer_code
+    def referral_link(self):
+        return f'{settings.DOMAIN_NAME}?referral_code={self.refer_code}'
 
     @property
     def point(self):

@@ -901,10 +901,12 @@ class NewProfileSerializer(serializers.ModelSerializer):
             'City',
             'Sex',
             'Bio',
-            'image']
+            'image',
+            'referral_link']
         read_only_fields = ['MobileNumber']
         extra_kwargs = {
             'NationalCode': {'validators': []},
+            'referral_link': {'read_only': True},
         }
 
     def update(self, instance, validated_data):
