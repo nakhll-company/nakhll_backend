@@ -143,6 +143,10 @@ class ShopLogisticUnitInterface:
             pad_lus = self.get_pad_lus()
             if set(all_lus) == set(pad_lus) and len(all_lus) != 0:
                 only_pad_ids.append(product.ID)
+            elif set(all_lus) == set(pad_lus) and len(all_lus) == 0:
+                message = 'محصول {0} از فروشگاه {1} به شهر شما ارسال نمی شود'.format(product.Title,
+                                                                                     product.FK_Shop.Title)
+                raise NoLogisticUnitAvailableException(message)
         only_pad_products = Product.objects.filter(ID__in=only_pad_ids)
         self.all_products = self.all_products.difference(only_pad_products)
         return only_pad_products

@@ -14,14 +14,14 @@ from cart.serializers import (CartSerializer, CartItemSerializer,
 from cart.utils import get_user_or_guest
 from cart.permissions import IsCartOwner, IsCartItemOwner
 from payoff.exceptions import (NoAddressException, InvoiceExpiredException,
-                            InvalidInvoiceStatusException, NoItemException,
-                            OutOfPostRangeProductsException)
+                               InvalidInvoiceStatusException, NoItemException,
+                               OutOfPostRangeProductsException)
 from logistic.interfaces import LogisticUnitInterface
 
 
 class UserCartViewSet(viewsets.GenericViewSet):
     serializer_class = CartSerializer
-    permission_classes = [IsCartOwner,]
+    permission_classes = [IsCartOwner, ]
 
     def get_object(self):
         user, guid = get_user_or_guest(self.request)
@@ -29,7 +29,7 @@ class UserCartViewSet(viewsets.GenericViewSet):
             'TODO: return CartManager._get_user_cart(user, guid)'
             return CartManager.user_active_cart(user, guid)
         return None
-        
+
     @action(detail=False, methods=['GET'], name='View current user active cart')
     def me(self, request):
         cart = self.get_object()
@@ -43,7 +43,6 @@ class UserCartViewSet(viewsets.GenericViewSet):
             response.delete_cookie('guest_unique_id')
         return response
 
-        
     @action(methods=['PATCH'], detail=False)
     def set_address(self, request):
         # TODO: do I raise error if address is not valid?
@@ -58,15 +57,13 @@ class UserCartViewSet(viewsets.GenericViewSet):
         cart.save()
         return Response(lui.as_dict(), status=status.HTTP_200_OK)
 
-
     def get_logistic_details(self, cart):
         # if not self.address:
-            # raise ValidationError(_('آدرس سفارش را وارد کنید'))
+        # raise ValidationError(_('آدرس سفارش را وارد کنید'))
         lui = LogisticUnitInterface(cart)
         lui.generate_logistic_unit_list()
         return lui
-        
-        
+
     @action(methods=['PATCH'], detail=False)
     def set_coupon(self, request):
         ''' Verify and calculate user coupon and return discount amount
@@ -83,7 +80,8 @@ class UserCartViewSet(viewsets.GenericViewSet):
         if coupon.is_valid(cart):
             serializer.save()
             cart.coupons.add(coupon)
-        return Response({'coupon': coupon.code, 'result': coupon.final_price, 'errors': coupon.errors}, status=status.HTTP_200_OK)
+        return Response({'coupon': coupon.code, 'result': coupon.final_price, 'errors': coupon.errors},
+                        status=status.HTTP_200_OK)
 
     @action(methods=['PATCH'], detail=False)
     def unset_coupon(self, request):
@@ -98,7 +96,6 @@ class UserCartViewSet(viewsets.GenericViewSet):
         serializer.save()
         return Response({'result': 0}, status=status.HTTP_200_OK)
 
-        
     @action(methods=['POST'], detail=False)
     def pay(self, request):
         ''' Convert cart to invoice and send to payment app '''
@@ -107,7 +104,8 @@ class UserCartViewSet(viewsets.GenericViewSet):
             invoice = cart.convert_to_invoice()
             return invoice.send_to_payment()
         except NoItemException:
-            return Response({'error': 'سبد خرید شما خالی است. لطفا سبد خرید خود را تکمیل کنید'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'سبد خرید شما خالی است. لطفا سبد خرید خود را تکمیل کنید'},
+                            status=status.HTTP_400_BAD_REQUEST)
         except NoAddressException:
             return Response({'error': 'آدرس خریدار را تکمیل کنید'}, status=status.HTTP_400_BAD_REQUEST)
         except InvoiceExpiredException:
@@ -164,9 +162,8 @@ class UserCartItemViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin):
 
     def append_cookie(self, response, cart):
         if not self.request.COOKIES.get('guest_unique_id'):
-            response.set_cookie('guest_unique_id', cart.guest_unique_id, max_age=60*60*24*365)
+            response.set_cookie('guest_unique_id', cart.guest_unique_id, max_age=60 * 60 * 24 * 365)
         return response
-
 
     def get_cart(self):
         '''
@@ -176,5 +173,5 @@ class UserCartItemViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin):
             if user or guid:
                 return CartManager._get_user_cart(user, guid)
             return None
-        '''   
+        '''
         return Cart.get_user_cart(self.request)
