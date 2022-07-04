@@ -115,8 +115,8 @@ class Invoice(models.Model):
 
     @property
     def barcodes(self):
-        return [item.barcode for item in self.items.exclude(
-            barcode=None).values_list('barcode', flat=True)]
+        return self.items.exclude(
+            barcode=None).values_list('barcode', flat=True)
 
     @property
     def logistic_errors(self):
