@@ -77,6 +77,7 @@ THIRD_PARTY_APPS = [
     'django_rename_app',
     'drf_yasg',
     'import_export',
+    'dbbackup',
 ]
 
 NAKHLL_APPS = [
@@ -417,6 +418,9 @@ LOGGING = {
         }
     },
 }
+
+DBBACKUP_STORAGE = 'django.core.files.storage.FileSystemStorage'
+DBBACKUP_STORAGE_OPTIONS = {'location': './backup/'}
 
 # django-debug-toolbar settings
 if DEBUG:
