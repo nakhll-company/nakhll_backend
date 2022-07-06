@@ -55,7 +55,8 @@ from nakhll_market.serializers import (
     CreateShopSerializer,
     ProductInventoryWriteSerializer,
     ProductListSerializer,
-    ShopAllSettingsSerializer,
+    ShopAllSettingsReadSerializer,
+    ShopAllSettingsWriteSerializer,
     SliderSerializer,
     UserOrderSerializer,
     ProductSubMarketSerializer,
@@ -650,6 +651,7 @@ class ShopMultipleUpdateInventory(views.APIView):
 
 class AllShopSettings(views.APIView):
     # TODO: Check this class entirely
+    serializer_class = ShopAllSettingsReadSerializer
     permission_classes = [permissions.IsAuthenticated, IsShopOwner]
 
     def get_object(self, shop_slug, user):
@@ -659,14 +661,15 @@ class AllShopSettings(views.APIView):
         user = request.user
         shop = self.get_object(shop_slug, user)
         self.check_object_permissions(request, shop)
-        serializer = ShopAllSettingsSerializer(shop)
+        serializer = ShopAllSettingsReadSerializer(shop)
         return Response(serializer.data)
 
     def patch(self, request, shop_slug, format=None):
         user = request.user
         shop = self.get_object(shop_slug, user)
         self.check_object_permissions(request, shop)
-        serializer = ShopAllSettingsSerializer(data=request.data, instance=shop, context={'user': user})
+        serializer = ShopAllSettingsWriteSerializer(
+            data=request.data, instance=shop, context={'user': user})
         if serializer.is_valid():
             serializer.save()
         else:

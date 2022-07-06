@@ -686,7 +686,7 @@ class ShopSettingsSerializer(serializers.ModelSerializer):
         }
 
 
-class ShopAllSettingsSerializer(serializers.ModelSerializer):
+class ShopAllSettingsReadSerializer(serializers.ModelSerializer):
     FK_ShopManager = UserProfileSerializer(
         many=False, read_only=False, required=False)
     bank_account = ShopBankAccountSerializer(
@@ -718,6 +718,38 @@ class ShopAllSettingsSerializer(serializers.ModelSerializer):
             'BigCity',
             'City',
             'Location']
+        read_only_fields = fields
+
+
+class ShopAllSettingsWriteSerializer(serializers.ModelSerializer):
+    FK_ShopManager = UserProfileSerializer(
+        many=False, read_only=False, required=False)
+    bank_account = ShopBankAccountSerializer(
+        many=False, read_only=False, required=False)
+    social_media = ShopSocialMediaSerializer(
+        many=False, read_only=False, required=False)
+    Image = Base64ImageField(
+        max_length=None,
+        use_url=True,
+        allow_empty_file=False,
+        required=False,
+        allow_null=True)
+
+    class Meta:
+        model = Shop
+        fields = [
+            'Title',
+            'Slug',
+            'Image',
+            'image_thumbnail_url',
+            'bank_account',
+            'social_media',
+            'Description',
+            'FK_ShopManager',
+            'State',
+            'BigCity',
+            'City',
+            'Location']
         read_only_fields = ['Title', 'Slug', 'image_thumbnail_url']
 
     def validate(self, data):
@@ -732,24 +764,6 @@ class ShopAllSettingsSerializer(serializers.ModelSerializer):
             if duplicated.exists():
                 raise serializers.ValidationError(
                     {'NationalCode_error': 'کد ملی وارد شده از قبل در سایت وجود دارد.'})
-        state_name = data.pop(
-            'State')['name'] if 'State' in data else None
-        big_city_name = data.pop(
-            'BigCity')['name'] if 'BigCity' in data else None
-        city_name = data.pop(
-            'City')['name'] if 'City' in data else None
-        try:
-            state = State.objects.get(name=state_name)
-            big_city = BigCity.objects.get(name=big_city_name, state=state)
-            city = City.objects.get(name=city_name, big_city=big_city)
-            data['State'] = state
-            data['BigCity'] = big_city
-            data['City'] = city
-        except BaseException:
-            '''
-            It seems all validation can be done in the frontend
-            os we don't raise error when we haven't state, city, bigcity
-            '''
         return data
 
     def update(self, instance, validated_data):
