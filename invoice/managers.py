@@ -4,12 +4,27 @@ import invoice.models as invoice_models
 import jdatetime
 from django.db import models
 from django.db.models.aggregates import Sum
-from django.db.models.expressions import Value, F
+from django.db.models.expressions import Value, F, Q
 from django.db.models.fields import DecimalField
 from django.db.models.functions.comparison import Coalesce
 
 
+class InvoiceQuerySet(models.QuerySet):
+    def paid_invoice(self):
+        return self.filter(
+            status__in=(invoice_models.Invoice.Statuses.AWAIT_SHOP_APPROVAL,
+                        invoice_models.Invoice.Statuses.PREPATING_PRODUCT,
+                        invoice_models.Invoice.Statuses.AWAIT_CUSTOMER_APPROVAL,
+                        invoice_models.Invoice.Statuses.AWAIT_SHOP_CHECKOUT,
+                        invoice_models.Invoice.Statuses.COMPLETED,))
+
+    def shop_invoice(self, shop):
+        return self.filter(items__product__FK_Shop=shop)
+
 class AccountingManager(models.Manager):
+    def get_queryset(self):
+        return InvoiceQuerySet(self.model, using=self._db)
+
     def completed_user_invoices(self, user):
         statuses = invoice_models.Invoice.Statuses
         return self.filter(items__product__FK_Shop__FK_ShopManager=user,
@@ -40,10 +55,11 @@ class AccountingManager(models.Manager):
                            ]).order_by('-created_datetime')
 
     def unconfirmed_user_shop_invoices(self, user, shop_slug):
-        return self.filter(items__product__FK_Shop__FK_ShopManager=user,
-                           items__product__FK_Shop__Slug=shop_slug,
-                           items__status=invoice_models.InvoiceItem.ItemStatuses.AWAIT_SHOP_APPROVAL
-                           ).order_by('-created_datetime')
+        return self.filter(
+            items__product__FK_Shop__FK_ShopManager=user,
+            items__product__FK_Shop__Slug=shop_slug,
+            items__status=invoice_models.InvoiceItem.ItemStatuses.
+            AWAIT_SHOP_APPROVAL).order_by('-created_datetime')
 
     def shop_invoices(self, shop_slug):
         return self.annotate(
@@ -51,10 +67,22 @@ class AccountingManager(models.Manager):
                 Sum('coupon_usages__price_applied',
                     output_field=DecimalField()), Value(Decimal(0.0))),
             price=F('invoice_price_with_discount') +
-                  F('logistic_price') -
-                  F('coupon_price'),
+            F('logistic_price') -
+            F('coupon_price'),
             weight=F('total_weight_gram'),
         ).filter(items__product__FK_Shop__Slug=shop_slug).order_by('-created_datetime')
+
+    def shop_total_sell_amount(self, shop):
+        queryset = self.get_queryset()
+        invoices = queryset.shop_invoice(shop).paid_invoice()
+        return sum(map(lambda i: i.final_price,
+                   invoices))
+
+    def shop_last_sell_date(self, shop):
+        queryset = self.get_queryset()
+        invoices = queryset.shop_invoice(shop).paid_invoice()
+        invoice = invoices.exclude(payment_datetime=None).order_by('-payment_datetime').first()
+        return invoice.jpayment_datetime if invoice else None
 
 
 class InvoiceItemManager(models.Manager):

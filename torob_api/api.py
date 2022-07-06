@@ -42,8 +42,8 @@ class TorobAllProducts(GenericAPIView):
 
     def get_queryset(self, page_url=None, page_unique=None):
         if page_url:
-            ID = page_url.split('/')[-2]
-            return Product.objects.filter(ID=ID)
+            Slug = page_url.split('/')[-2]
+            return Product.objects.filter(Slug=Slug)
         elif page_unique:
             return Product.objects.filter(ID=page_unique)
         else:

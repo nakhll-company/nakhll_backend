@@ -166,22 +166,21 @@ class ShopLogisticUnitInterface:
             return lu.name
         return 'ارسال رایگان'
 
+    def shop_active_logistic_units(self, shop):
+        return models.ShopLogisticUnit.objects.filter(
+            shop=shop, is_active=True)
+
     def get_available_logistic_units(self, shop):
-        # TODO: shouldn't I filter weight here?
-        if not models.ShopLogisticUnit.objects.filter(shop=shop, is_active=True).exists():
-            return None
-        filter_queryset = Q()
+        queryset = self.shop_active_logistic_units(shop)
         sum_shop_cart_price = self.cart.products.filter(FK_Shop=shop).aggregate(
             total_price=Sum('Price')
         )['total_price']
-        filter_queryset &= Q(is_active=True)
-        filter_queryset &= Q(shop=shop)
-        filter_queryset &= Q(
+        filter_queryset = Q(
             Q(constraint__cities=self.cart.address.city) |
             Q(constraint__cities=None)
         )
         filter_queryset &= Q(constraint__min_cart_price__lte=sum_shop_cart_price)
-        return models.ShopLogisticUnit.objects.filter(filter_queryset)
+        return queryset.filter(filter_queryset)
 
     def get_product_available_logistic_units(self, product: Product, *, exclude_pads=False):
         filter_queryset = Q()

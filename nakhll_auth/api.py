@@ -1,4 +1,5 @@
-import random, datetime
+import random
+import datetime
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.http.response import Http404
@@ -31,7 +32,7 @@ class BeginAuthViewSet(viewsets.GenericViewSet):
         if mobile_status == AuthRequest.MobileStatuses.NOT_REGISTERED:
             self._create_user(mobile)
         sms_code = None if mobile_status == AuthRequest.MobileStatuses.LOGIN_WITH_PASSWORD\
-                    else self._generate_and_send_sms_code(mobile)
+            else self._generate_and_send_sms_code(mobile)
         serializer.save(request_type=AuthRequest.RequestTypes.LOGIN_REGISTER,
                         sms_code=sms_code, mobile_status=mobile_status)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -49,12 +50,12 @@ class BeginAuthViewSet(viewsets.GenericViewSet):
         serializer.save(request_type=AuthRequest.RequestTypes.FORGOT_PASSWORD,
                         sms_code=sms_code, mobile_status=mobile_status)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-   
+
     def _generate_and_send_sms_code(self, mobile):
         code = str(random.randint(100000, 999999))
-        Kavenegar.send_auth_code(mobile, code)     
+        Kavenegar.send_auth_code(mobile, code)
         return code
-    
+
     def _get_mobile_status(self, mobile):
         user = self._get_user(mobile)
         if not user:
@@ -92,48 +93,51 @@ class BeginAuthViewSet(viewsets.GenericViewSet):
             return
         user.username = mobile
         user.save()
-        
+
     @action(methods=["patch"], detail=False)
     def resend_sms_code(self, request):
         serializer = BeginAuthSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         mobile = serializer.validated_data['mobile']
-        auth_request = AuthRequest.objects.filter(mobile=mobile,
-                                                  request_status=AuthRequest.RequestStatuses.PENDING,
-                                                  created_at__gt=timezone.now() - timezone.timedelta(minutes=5)).last()
-        if auth_request == None:
-            raise ValidationError({'error': [_('درخواست احراز هویت نامعتبر است')]}, code=status.HTTP_400_BAD_REQUEST)
+        auth_request = AuthRequest.objects.filter(
+            mobile=mobile, request_status=AuthRequest.RequestStatuses.PENDING,
+            created_at__gt=timezone.now() - timezone.timedelta(minutes=5)).last()
+        if auth_request is None:
+            raise ValidationError(
+                {'error': [_('درخواست احراز هویت نامعتبر است')]},
+                code=status.HTTP_400_BAD_REQUEST)
         if timezone.now() > auth_request.updated_at + timezone.timedelta(minutes=1):
             code = self._generate_and_send_sms_code(mobile)
             auth_request.sms_code = code
             auth_request.save()
             return Response(status=status.HTTP_200_OK)
         else:
-            raise ValidationError ({'error': ['برای ارسال مجدد کد باید یک دقیقه صبر کنید']},
-                                  code=status.HTTP_400_BAD_REQUEST)
+            raise ValidationError(
+                {'error': ['برای ارسال مجدد کد باید یک دقیقه صبر کنید']},
+                code=status.HTTP_400_BAD_REQUEST)
 
-            
-            
-    
 
 class CompeleteAuthViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
+    serializer_class = CompleteAuthSerializer
 
     def create(self, request, *args, **kwargs):
         serializer = CompleteAuthSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(auth_secret=generate_uuid_code())
         return Response(serializer.data, status=status.HTTP_200_OK)
-   
+
+
 class ProfileViewSet(viewsets.GenericViewSet):
     serializer_class = PasswordSerializer
     permission_classes = [permissions.AllowAny, ]
 
     @action(methods=['post'], detail=False, url_path='set_password')
     def set_password(self, request, *args, **kwargs):
-        serializer = PasswordSerializer(data=request.data, partial=True,
-                                request_type=AuthRequest.RequestTypes.FORGOT_PASSWORD)
+        serializer = PasswordSerializer(
+            data=request.data, partial=True,
+            request_type=AuthRequest.RequestTypes.FORGOT_PASSWORD)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         refresh = RefreshToken.for_user(serializer.user)
@@ -141,6 +145,7 @@ class ProfileViewSet(viewsets.GenericViewSet):
         data['refresh'] = str(refresh)
         data['access'] = str(refresh.access_token)
         return Response(data, status=status.HTTP_200_OK)
+
 
 class GetAccessTokenView(TokenViewBase):
     serializer_class = GetTokenSerializer

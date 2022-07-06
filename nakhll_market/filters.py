@@ -1,5 +1,6 @@
 from django_filters import rest_framework as filters
 from nakhll_market.models import BigCity, City, Category, Product, State, Tag, ProductTag
+from nakhll_market.utils import split_args
 
 
 class ProductFilter(filters.FilterSet):
@@ -20,8 +21,19 @@ class ProductFilter(filters.FilterSet):
 
     class Meta:
         model = Product
-        fields = ['search', 'min_price','max_price', 'ready', 'available', 'category', 'in_campaign',
-                  'category', 'city', 'discounted', 'is_advertisement', 'shop']
+        fields = [
+            'search',
+            'min_price',
+            'max_price',
+            'ready',
+            'available',
+            'category',
+            'in_campaign',
+            'category',
+            'city',
+            'discounted',
+            'is_advertisement',
+            'shop']
 
     def filter_ready(self, queryset, name, value):
         READY_IN_STOCK = '1'
@@ -37,35 +49,50 @@ class ProductFilter(filters.FilterSet):
     def filter_available(self, queryset, name, value):
         if value:
             AVAILABLE_IDS = ['1', '2', '3', ]
-            return queryset.filter(Status__in=AVAILABLE_IDS, Inventory__gt=0, FK_Shop__Publish=True)
+            return queryset.filter(
+                Status__in=AVAILABLE_IDS, Inventory__gt=0,
+                FK_Shop__Publish=True)
         return queryset
 
+    @split_args(-1)
     def filter_category(self, queryset, name, value):
         return queryset.filter(
-            category__in=value.split(',')) if value else queryset
+            category__in=value) if value else queryset
 
+    @split_args(-1)
     def filter_category(self, queryset, name, value):
-        category_ids = value.split(',')
-        categories = Category.objects.filter(id__in=category_ids)
+        categories = Category.objects.filter(id__in=value)
         subcategories = Category.objects.all_subcategories(categories)
         return queryset.filter(category__in=subcategories)
 
-    def filter_state(self, queryset, name, value):
-        states = State.objects.filter(id__in=value.split(',')).values_list('name', flat=True)
-        return queryset.filter(FK_Shop__State__in=states)
-
     # TODO: in all shops or in owenshop?
+
+    @split_args(-1)
     def filter_tags(self, queryset, name, value):
-        tags_id = list(map(lambda x : int(x),value.split(',')))
-        product_id = ProductTag.objects.filter(tag__id__in=tags_id).values_list('product', flat=True)
+        product_id = ProductTag.objects.filter(
+            tag__id__in=value).values_list(
+            'product', flat=True)
         return queryset.filter(ID__in=product_id)
 
+    @split_args(-1)
+    def filter_state(self, queryset, name, value):
+        states = State.objects.filter(
+            id__in=value).values_list(
+            'id', flat=True)
+        return queryset.filter(FK_Shop__State__in=states)
+
+    @split_args(-1)
     def filter_big_city(self, queryset, name, value):
-        big_cities = BigCity.objects.filter(id__in=value.split(',')).values_list('name', flat=True)
+        big_cities = BigCity.objects.filter(
+            id__in=value).values_list(
+            'id', flat=True)
         return queryset.filter(FK_Shop__BigCity__in=big_cities)
 
+    @split_args(-1)
     def filter_city(self, queryset, name, value):
-        cities = City.objects.filter(id__in=value.split(',')).values_list('name', flat=True)
+        cities = City.objects.filter(
+            id__in=value).values_list(
+            'id', flat=True)
         return queryset.filter(FK_Shop__City__in=cities)
 
     def filter_discounted(self, queryset, name, value):

@@ -51,12 +51,12 @@ class Address(models.Model):
         return json.dumps(address_data, ensure_ascii=False)
 
 
-
 class ShopLogisticUnit(models.Model):
     class Meta:
         verbose_name = _('واحد ارسال فروشگاه')
         verbose_name_plural = _('واحد ارسال فروشگاه')
         ordering = ['-id']
+
     class LogoType(models.IntegerChoices):
         CUSTOM = 0, _('لوگوی شخصی')
         PPOST = 1, _('پست پیشتاز')
@@ -64,37 +64,48 @@ class ShopLogisticUnit(models.Model):
         DELIVERY = 3, _('پیک')
         PAD = 4, _('پسکرایه')
         FREE = 5, _('رایگان')
-    
 
-    shop = models.ForeignKey(Shop, verbose_name=_('حجره'),
-                             related_name='logistic_units', on_delete=models.CASCADE)
+    shop = models.ForeignKey(
+        Shop,
+        verbose_name=_('حجره'),
+        related_name='logistic_units',
+        on_delete=models.CASCADE)
     name = models.CharField(verbose_name=_('نام واحد'), max_length=200)
-    logo = models.ImageField(verbose_name=_('لوگو'), upload_to='media/Pictures/logistic_unit/defaults',
-                             null=True, blank=True, default='static/Pictures/unkown_lu.png')
-    logo_type = models.IntegerField(verbose_name=_('نوع لوگو'), choices=LogoType.choices, default=LogoType.CUSTOM)
+    logo = models.ImageField(
+        verbose_name=_('لوگو'),
+        upload_to='media/Pictures/logistic_unit/defaults',
+        null=True,
+        blank=True,
+        default='static/Pictures/unkown_lu.png')
+    logo_type = models.IntegerField(
+        verbose_name=_('نوع لوگو'),
+        choices=LogoType.choices,
+        default=LogoType.CUSTOM)
     is_active = models.BooleanField(verbose_name=_('فعال؟'), default=True)
     is_publish = models.BooleanField(verbose_name=_('منتشر شود؟'), default=True)
-    description = models.TextField(verbose_name=_('توضیحات'), null=True, blank=True)
-    created_at = models.DateTimeField(verbose_name=_('تاریخ ایجاد'), auto_now_add=True)
-    updated_at = models.DateTimeField(verbose_name=_('تاریخ بروزرسانی'), auto_now=True)
+    description = models.TextField(
+        verbose_name=_('توضیحات'),
+        null=True, blank=True)
+    created_at = models.DateTimeField(
+        verbose_name=_('تاریخ ایجاد'),
+        auto_now_add=True)
+    updated_at = models.DateTimeField(
+        verbose_name=_('تاریخ بروزرسانی'), auto_now=True)
     objects = ShopLogisticUnitManager()
 
     def __str__(self):
         return f'{self.shop}: {self.name}'
 
-    
     def save(self, **kwargs):
         self.save_logo()
         return super().save(**kwargs)
 
-        
     def save_logo(self):
         if self.logo_type != self.LogoType.CUSTOM:
-            self.logo = File(open(f'static/Pictures/{self.logo_type}.png', 'rb'))
-
-
-            
-        
+            self.logo = File(
+                open(
+                    f'static/Pictures/{self.logo_type}.png',
+                    'rb'))
 
 
 class ShopLogisticUnitConstraint(models.Model):
@@ -102,51 +113,86 @@ class ShopLogisticUnitConstraint(models.Model):
         verbose_name = _('محدودیت واحد ارسال فروشگاه')
         verbose_name_plural = _('محدودیت واحد ارسال فروشگاه')
         ordering = ['-id']
-        
-    shop_logistic_unit = models.OneToOneField(ShopLogisticUnit, verbose_name=_('واحد ارسال'),
-                                            related_name='constraint', on_delete=models.CASCADE)
-    cities = models.ManyToManyField(City, verbose_name=_('شهرها'), related_name='logistic_unit_constraints', blank=True)
-    products = models.ManyToManyField(Product, verbose_name=_('محصولات'), related_name='logistic_unit_constraints', blank=True)
-    categories = models.ManyToManyField(Category, verbose_name=_('دسته بندی ها'), related_name='logistic_unit_constraints', blank=True)
-    max_weight = models.PositiveIntegerField(verbose_name=_('حداکثر وزن (کیلوگرم)'), default=0, null=True, blank=True)
-    min_weight = models.PositiveIntegerField(verbose_name=_('حداقل وزن (کیلوگرم)'), default=0, null=True, blank=True)
-    max_cart_price = models.PositiveIntegerField(verbose_name=_('حداکثر قیمت سبد خرید (ریال)'), default=0, null=True, blank=True)
-    min_cart_price = models.PositiveIntegerField(verbose_name=_('حداقل قیمت سبد خرید (ریال)'), default=0, null=True, blank=True)
-    max_cart_count = models.PositiveIntegerField(verbose_name=_('حداکثر تعداد سبد خرید'), default=0, null=True, blank=True)
-    min_cart_count = models.PositiveIntegerField(verbose_name=_('حداقل تعداد سبد خرید'), default=0, null=True, blank=True)
-    created_at = models.DateTimeField(verbose_name=_('تاریخ ایجاد'), auto_now_add=True)
-    updated_at = models.DateTimeField(verbose_name=_('تاریخ بروزرسانی'), auto_now=True)
+
+    shop_logistic_unit = models.OneToOneField(
+        ShopLogisticUnit, verbose_name=_('واحد ارسال'),
+        related_name='constraint', on_delete=models.CASCADE)
+    cities = models.ManyToManyField(
+        City, verbose_name=_('شهرها'),
+        related_name='logistic_unit_constraints', blank=True)
+    products = models.ManyToManyField(
+        Product, verbose_name=_('محصولات'),
+        related_name='logistic_unit_constraints', blank=True)
+    categories = models.ManyToManyField(
+        Category, verbose_name=_('دسته بندی ها'),
+        related_name='logistic_unit_constraints', blank=True)
+    max_weight = models.PositiveIntegerField(
+        verbose_name=_('حداکثر وزن (کیلوگرم)'),
+        default=0, null=True, blank=True)
+    min_weight = models.PositiveIntegerField(
+        verbose_name=_('حداقل وزن (کیلوگرم)'),
+        default=0, null=True, blank=True)
+    max_cart_price = models.PositiveIntegerField(
+        verbose_name=_('حداکثر قیمت سبد خرید (ریال)'),
+        default=0, null=True, blank=True)
+    min_cart_price = models.PositiveIntegerField(
+        verbose_name=_('حداقل قیمت سبد خرید (ریال)'),
+        default=0, null=True, blank=True)
+    max_cart_count = models.PositiveIntegerField(
+        verbose_name=_('حداکثر تعداد سبد خرید'),
+        default=0, null=True, blank=True)
+    min_cart_count = models.PositiveIntegerField(
+        verbose_name=_('حداقل تعداد سبد خرید'),
+        default=0, null=True, blank=True)
+    created_at = models.DateTimeField(
+        verbose_name=_('تاریخ ایجاد'),
+        auto_now_add=True)
+    updated_at = models.DateTimeField(
+        verbose_name=_('تاریخ بروزرسانی'), auto_now=True)
 
     def __str__(self):
         return f'{self.shop_logistic_unit} - {self.cities.count()} - {self.products.count()}'
 
-        
+
 class ShopLogisticUnitCalculationMetric(models.Model):
     class Meta:
         verbose_name = _('پارامتر‌ محاسبه واحد ارسال فروشگاه')
         verbose_name_plural = _('پارامتر‌ محاسبه واحد ارسال فروشگاه')
         ordering = ['-id']
+
     class PayTimes(models.TextChoices):
         WHEN_BUYING = 'when_buying', _('هنگام خرید')
         AT_DELIVERY = 'at_delivery', _('هنگام تحویل')
-        
+
     class PayerTypes(models.TextChoices):
         SHOP = 'shop', _('فروشگاه')
         CUSTOMER = 'cust', _('مشتری')
 
-   
-    shop_logistic_unit = models.OneToOneField(ShopLogisticUnit, verbose_name=_('واحد ارسال'),
-                                            related_name='calculation_metric', on_delete=models.CASCADE)
-    price_per_kilogram = models.FloatField(verbose_name=_('قیمت به ازای هر کیلو (ریال)'), default=0)
-    price_per_extra_kilogram = models.FloatField(verbose_name=_('قیمت به ازای هر کیلو اضافه (ریال)'), default=0)
-    pay_time = models.CharField(verbose_name=_('زمان پرداخت'), max_length=11, choices=PayTimes.choices, default=PayTimes.WHEN_BUYING)
-    payer = models.CharField(verbose_name=_('پرداخت کننده'), max_length=4, choices=PayerTypes.choices, default=PayerTypes.CUSTOMER)
-    created_at = models.DateTimeField(verbose_name=_('تاریخ ایجاد'), auto_now_add=True)
-    updated_at = models.DateTimeField(verbose_name=_('تاریخ بروزرسانی'), auto_now=True)
+    shop_logistic_unit = models.OneToOneField(
+        ShopLogisticUnit, verbose_name=_('واحد ارسال'),
+        related_name='calculation_metric', on_delete=models.CASCADE)
+    price_per_kilogram = models.FloatField(
+        verbose_name=_('قیمت به ازای هر کیلو (ریال)'), default=0)
+    price_per_extra_kilogram = models.FloatField(
+        verbose_name=_('قیمت به ازای هر کیلو اضافه (ریال)'), default=0)
+    pay_time = models.CharField(
+        verbose_name=_('زمان پرداخت'),
+        max_length=11,
+        choices=PayTimes.choices,
+        default=PayTimes.WHEN_BUYING)
+    payer = models.CharField(
+        verbose_name=_('پرداخت کننده'),
+        max_length=4,
+        choices=PayerTypes.choices,
+        default=PayerTypes.CUSTOMER)
+    created_at = models.DateTimeField(
+        verbose_name=_('تاریخ ایجاد'),
+        auto_now_add=True)
+    updated_at = models.DateTimeField(
+        verbose_name=_('تاریخ بروزرسانی'), auto_now=True)
 
     def __str__(self):
         return f'{self.shop_logistic_unit} - {self.price_per_kilogram} - {self.price_per_extra_kilogram}'
-
 
 
 class LogisticUnitGeneralSetting(models.Model):
@@ -154,56 +200,48 @@ class LogisticUnitGeneralSetting(models.Model):
         verbose_name = _('تنظیمات واحد ارسال')
         verbose_name_plural = _('تنظیمات واحد ارسال')
 
-    default_price_per_kilogram = models.PositiveIntegerField(verbose_name=_('قیمت به ازای هر کیلو (ریال)'), default=0)
-    default_price_per_extra_kilogram = models.PositiveIntegerField(verbose_name=_('قیمت به ازای هر کیلو اضافه (ریال)'), default=0)
-    maximum_price_per_kilogram = models.PositiveIntegerField(verbose_name=_('حداکثر قیمت به ازای هر کیلو (ریال)'), default=0)
-    maximum_price_per_extra_kilogram = models.PositiveIntegerField(verbose_name=_('حداکثر قیمت به ازای هر کیلو اضافه (ریال)'), default=0)
-    created_at = models.DateTimeField(verbose_name=_('تاریخ ایجاد'), auto_now_add=True)
-    updated_at = models.DateTimeField(verbose_name=_('تاریخ بروزرسانی'), auto_now=True)
-    updated_by = models.ForeignKey(User, verbose_name=_('بروزرسانی توسط'), on_delete=models.SET_NULL, null=True, blank=True)
+    class Name(models.IntegerChoices):
+        '''it's used as logo_type in generate_logistic_units'''
+        PPOST = 1, _('پست پیشتاز')
+        SPOST = 2, _('پست سفارشی')
+        DELIVERY = 3, _('پیک')
+        PAD = 4, _('پسکرایه')
+        FREE = 5, _('ارسال رایگان')
+
+    name = models.IntegerField(
+        verbose_name=_('نوع ارسال پستی'),
+        choices=Name.choices,
+        unique=True,
+        default=Name.PPOST)
+    default_price_per_kilogram = models.PositiveIntegerField(
+        verbose_name=_('قیمت به ازای هر کیلو (ریال)'), default=0)
+    default_price_per_extra_kilogram = models.PositiveIntegerField(
+        verbose_name=_('قیمت به ازای هر کیلو اضافه (ریال)'), default=0)
+    maximum_price_per_kilogram = models.PositiveIntegerField(
+        verbose_name=_('حداکثر قیمت به ازای هر کیلو (ریال)'), default=0)
+    maximum_price_per_extra_kilogram = models.PositiveIntegerField(
+        verbose_name=_('حداکثر قیمت به ازای هر کیلو اضافه (ریال)'), default=0)
+    is_active = models.BooleanField('فعال', default=True)
+    is_only_for_shop_city = models.BooleanField(
+        'فقط برای شهر حجره فعال می باشد', default=False)
+    created_at = models.DateTimeField(
+        verbose_name=_('تاریخ ایجاد'),
+        auto_now_add=True)
+    updated_at = models.DateTimeField(
+        verbose_name=_('تاریخ بروزرسانی'), auto_now=True)
+    updated_by = models.ForeignKey(
+        User, verbose_name=_('بروزرسانی توسط'),
+        on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return f'{self.default_price_per_kilogram} - {self.default_price_per_extra_kilogram}'
 
     def clean(self):
+        ''' we have only two object on for pishtaz another for sefareshi '''
         super().clean()
-        if not self.pk and LogisticUnitGeneralSetting.objects.exists():
-            raise Exception(_('تنظیمات اصلی فقط می‌تواند به یک بار تنظیم شود'))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        lugs = LogisticUnitGeneralSetting.objects.filter(name=self.name)
+        if lugs:
+            self.pk = lugs[0].pk
 
 
 ############################ COMPLEX MODELS ###############################
@@ -224,7 +262,8 @@ class LogisticUnitGeneralSetting(models.Model):
 #     updated_at = models.DateTimeField(_('تاریخ بروزرسانی'), auto_now=True)
 
 #     def __str__(self):
-#         return f'IsDefault: {self.is_default} (ppkg: {self.price_per_kg}, ppekg: {self.price_per_extra_kg})'
+# return f'IsDefault: {self.is_default} (ppkg: {self.price_per_kg}, ppekg:
+# {self.price_per_extra_kg})'
 
 
 # class LogisticUnitConstraintParameter(models.Model):
@@ -248,7 +287,8 @@ class LogisticUnitGeneralSetting(models.Model):
 #     updated_at = models.DateTimeField(_('تاریخ بروزرسانی'), auto_now=True)
 
 #     def __str__(self):
-#         return f'MinPrice: {self.min_price} (MaxWeight: {self.max_weight_g}, MaxPackageValue: {self.max_package_value})'
+# return f'MinPrice: {self.min_price} (MaxWeight: {self.max_weight_g},
+# MaxPackageValue: {self.max_package_value})'
 
 
 # class LogisticUnit(models.Model):
@@ -322,7 +362,7 @@ class LogisticUnitGeneralSetting(models.Model):
 #         default=True, verbose_name=_('استفاده از تنظیم پیش فرض؟'))
 #     created_at = models.DateTimeField(_('تاریخ ایجاد'), auto_now_add=True)
 #     updated_at = models.DateTimeField(_('تاریخ بروزرسانی'), auto_now=True)
-    
+
 #     def __str__(self):
 #         return self.shop.Slug + ' - ' + self.logistic_unit.name
 
@@ -341,7 +381,8 @@ class LogisticUnitGeneralSetting(models.Model):
 #     updated_at = models.DateTimeField(_('تاریخ بروزرسانی'), auto_now=True)
 
 #     def __str__(self):
-#         return self.shop_logistic_unit.__str__() + ' - ' + self.constraint.__str__()
+# return self.shop_logistic_unit.__str__() + ' - ' +
+# self.constraint.__str__()
 
 
 # class ShopLogisticUnitMetric(models.Model):
@@ -360,4 +401,5 @@ class LogisticUnitGeneralSetting(models.Model):
 #     updated_at = models.DateTimeField(_('تاریخ بروزرسانی'), auto_now=True)
 
 #     def __str__(self):
-#         return self.shop_logistic_unit_constraint.__str__() + ' - ' + self.metric.__str__()
+# return self.shop_logistic_unit_constraint.__str__() + ' - ' +
+# self.metric.__str__()

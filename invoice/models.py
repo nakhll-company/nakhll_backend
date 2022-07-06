@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.auth.models import User
 from cart.managers import CartManager
+from nakhll.utils import datetime2jalali
 from nakhll_market.interface import AlertInterface
 from nakhll_market.models import Category, Product, Shop
 from payoff.models import Transaction
@@ -114,7 +115,8 @@ class Invoice(models.Model):
 
     @property
     def barcodes(self):
-        return [item.barcode for item in self.items.all()]
+        return self.items.exclude(
+            barcode=None).values_list('barcode', flat=True)
 
     @property
     def logistic_errors(self):
@@ -138,6 +140,10 @@ class Invoice(models.Model):
         logistic_price = self.logistic_price
         coupon_price = self.coupons_total_price
         return total_price + logistic_price - coupon_price
+
+    @property
+    def jpayment_datetime(self):
+        return datetime2jalali(self.payment_datetime)
 
     def send_to_payment(self, bank_port=Transaction.IPGTypes.PEC):
         self.__validate_items()

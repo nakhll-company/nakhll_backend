@@ -1,9 +1,5 @@
-from django.core.files import File
-from datetime import datetime
-from nakhll_market.models import City, ProductManager
-import uuid
 from django.db import models
-from rest_framework.generics import get_object_or_404
+from functools import lru_cache
 
 
 class AddressManager(models.Manager):
@@ -11,57 +7,46 @@ class AddressManager(models.Manager):
 
 
 class ShopLogisticUnitManager(models.Manager):
-    
+
+    @lru_cache
+    def __get_models(self):
+        from logistic.models import (
+            LogisticUnitGeneralSetting,
+            ShopLogisticUnitConstraint,
+            ShopLogisticUnitCalculationMetric
+        )
+        return (
+            LogisticUnitGeneralSetting,
+            ShopLogisticUnitConstraint,
+            ShopLogisticUnitCalculationMetric
+        )
+
     def generate_shop_logistic_units(self, shop):
-        slu = self.create(shop=shop, name='ارسال رایگان', is_active=False,
-                          logo_type=models.ShopLogisticUnit.LogoType.FREE)
-        sluc = models.ShopLogisticUnitConstraint.objects.create(
-            shop_logistic_unit=slu
-        )
-        slum = models.ShopLogisticUnitCalculationMetric.objects.create(
-            shop_logistic_unit=slu, price_per_kilogram=0, price_per_extra_kilogram=0
-        )
+        '''generate shop default logistic units'''
+        default_logistic_units = self.get_default_logistic_units()
+        for logistic_unit in default_logistic_units:
+            self.generate_shop_logistic_unit(shop, logistic_unit)
 
-        slu = self.create(shop=shop, name='پیک', is_active=False,
-                          logo_type=models.ShopLogisticUnit.LogoType.DELIVERY)
-        sluc = models.ShopLogisticUnitConstraint.objects.create(
-            shop_logistic_unit=slu,
-        )
-        try:
-            sluc.cities.add(City.objects.get(name=shop.City))
-        except:
-            pass
-        slum = models.ShopLogisticUnitCalculationMetric.objects.create(
-            shop_logistic_unit=slu, price_per_kilogram=0, price_per_extra_kilogram=0
-        )
-  
-        slu = self.create(shop=shop, name='پسکرایه', is_active=False,
-                          logo_type=models.ShopLogisticUnit.LogoType.PAD)
-        sluc = models.ShopLogisticUnitConstraint.objects.create(
-            shop_logistic_unit=slu
-        )
-        slum = models.ShopLogisticUnitCalculationMetric.objects.create(
-            shop_logistic_unit=slu, price_per_kilogram=0, price_per_extra_kilogram=0
-        )
+    def get_default_logistic_units(self):
+        '''get default logistic units defined by logistic team'''
+        LogisticUnitGeneralSetting, _, _ = self.__get_models()
+        return LogisticUnitGeneralSetting.objects.all()
 
-        slu = self.create(shop=shop, name='پست پیشتاز', is_active=True,
-                          logo_type=models.ShopLogisticUnit.LogoType.PPOST)
-        sluc = models.ShopLogisticUnitConstraint.objects.create(
-            shop_logistic_unit=slu, max_weight=40
+    def generate_shop_logistic_unit(self, shop, logistic_unit):
+        '''generate shop one logistic unit for shop'''
+        _, ShopLogisticUnitConstraint, ShopLogisticUnitCalculationMetric = self.__get_models()
+        shop_logistic_unit = self.create(
+            shop=shop,
+            name=logistic_unit.get_name_display(),
+            is_active=logistic_unit.is_active,
+            logo_type=logistic_unit.name)
+        constraints = ShopLogisticUnitConstraint.objects.create(
+            shop_logistic_unit=shop_logistic_unit,
         )
-        slum = models.ShopLogisticUnitCalculationMetric.objects.create(
-            shop_logistic_unit=slu, price_per_kilogram=150000, price_per_extra_kilogram=25000
+        if logistic_unit.is_only_for_shop_city and shop.City:
+            constraints.cities.add(shop.City)
+        ShopLogisticUnitCalculationMetric.objects.create(
+            shop_logistic_unit=shop_logistic_unit,
+            price_per_kilogram=logistic_unit.default_price_per_kilogram,
+            price_per_extra_kilogram=logistic_unit.default_price_per_extra_kilogram,
         )
-        
-        slu = self.create(shop=shop, name='پست سفارشی', is_active=True,
-                          logo_type=models.ShopLogisticUnit.LogoType.SPOST)
-        sluc = models.ShopLogisticUnitConstraint.objects.create(
-            shop_logistic_unit=slu, max_weight=40
-        )
-        slum = models.ShopLogisticUnitCalculationMetric.objects.create(
-            shop_logistic_unit=slu, price_per_kilogram=140000, price_per_extra_kilogram=20000
-        )
-
-        
-
-from logistic import models

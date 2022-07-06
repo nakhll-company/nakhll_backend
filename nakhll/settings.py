@@ -71,12 +71,13 @@ THIRD_PARTY_APPS = [
     'imagekit',
     'compressor',
     'mathfilters',
-    'captcha',
     'django_prometheus',
     'django_extensions',
     'colorfield',
     'django_rename_app',
-    # 'import_export', # has conflict with django-excel-response in dependencies (openpyxl)
+    'drf_yasg',
+    'import_export',
+    'dbbackup',
 ]
 
 NAKHLL_APPS = [
@@ -189,7 +190,6 @@ ROOT_URLCONF = 'nakhll.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates/')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -367,12 +367,6 @@ GOOGLE_ANALYTICS_JS_PROPERTY_ID = 'UA-189302977-1'
 def IDENTITY_FUNCTION(user): return user.id
 
 
-RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '')
-RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '')
-RECAPTCHA_REQUIRED_SCORE = 0.85
-if DEBUG:
-    SILENCED_SYSTEM_CHECKS = ['captcha.recaptcha_test_key_error']
-
 SENDSMS_BACKEND = 'sms.backend.SmsBackend'
 HOTJAR_SITE_ID = '2447146'
 
@@ -424,3 +418,14 @@ LOGGING = {
         }
     },
 }
+
+DBBACKUP_STORAGE = 'django.core.files.storage.FileSystemStorage'
+DBBACKUP_STORAGE_OPTIONS = {'location': './backup/'}
+
+# django-debug-toolbar settings
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+    DEBUG_TOOLBAR_CONFIG = {
+        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+    }

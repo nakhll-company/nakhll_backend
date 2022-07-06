@@ -1,3 +1,4 @@
+from email import message
 from invoice.models import Invoice
 from logistic.serializers import AddressSerializer
 from nakhll.utils import get_dict
@@ -134,7 +135,7 @@ class ShopSerializer(serializers.ModelSerializer):
             'slug',
             'title',
             'image_thumbnail_url',
-            'total_products',
+            'products_count',
             'Description',
             'registered_months',
             'FK_ShopManager',
@@ -231,7 +232,8 @@ class CreateShopSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'error': 'شهرستان انتخاب شده معتبر نمی باشد.'})
         except City.DoesNotExist:
-            raise serializers.ValidationError({'error': 'شهر انتخاب شده معتبر نمی باشد.'})
+            raise serializers.ValidationError(
+                {'error': 'شهر انتخاب شده معتبر نمی باشد.'})
         return data
 
 
@@ -421,6 +423,12 @@ class ProductTagWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductTag
         fields = ['id', 'text', ]
+
+    def validate_text(self, data):
+        if len(data) > 127:
+            raise serializers.ValidationError(
+                {'error': 'تعداد کاراکترهای تگ انتخاب شده بیش از حد مجاز است.'})
+        return data
 
 
 class TagOwnerListSerializer(serializers.ModelSerializer):
@@ -913,8 +921,11 @@ class NewProfileSerializer(serializers.ModelSerializer):
         if 'Image' in validated_data:
             instance.Image = validated_data.pop('Image')
         user = validated_data.pop('FK_User')
-        birthday = validated_data.pop('BrithDay')
-        instance.BrithDay = jdatetime.date(birthday.year, birthday.month, birthday.day)
+        # TODO: I done as image for check birthday
+        if 'BrithDay' in validated_data:
+            birthday = validated_data.pop('BrithDay')
+            instance.BrithDay = jdatetime.date(
+                birthday.year, birthday.month, birthday.day)
         instance.user.first_name = user.get('first_name')
         instance.user.last_name = user.get('last_name')
         for prop in validated_data:
@@ -986,9 +997,9 @@ class UserOrderSerializer(serializers.ModelSerializer):
             'address_json',
             'address',
             'created_datetime',
-            'final_invoice_price',
-            'final_coupon_price',
-            'final_logistic_price',
+            # 'final_invoice_price', # TODO : Field name `final_invoice_price` is not valid for model `Invoice`
+            # 'final_coupon_price',  # TODO : Field name `final_coupon_price` is not valid for model `Invoice`
+            # 'final_logistic_price', # TODO : Field name `final_logistic_price` is not valid for model `Invoice`
             'status',
             'receiver_name',
             'receiver_mobile')
@@ -1007,14 +1018,11 @@ class ProductLastStateSerializer(serializers.ModelSerializer):
 
 
 class ShopSlugSerializer(serializers.ModelSerializer):
-    products = serializers.SerializerMethodField()
+    products_slug = serializers.ListField()
 
     class Meta:
         model = Shop
-        fields = ('Slug', 'products')
-
-    def get_products(self, obj):
-        return obj.products
+        fields = ('Slug', 'products_slug')
 
 
 class UserImageSerializer(serializers.ModelSerializer):
@@ -1023,32 +1031,6 @@ class UserImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserImage
         fields = ('id', 'image', 'title', 'description')
-
-
-class ShopStatisticSerializer(serializers.ModelSerializer):
-    products_count = serializers.SerializerMethodField()
-    register_datetime = serializers.SerializerMethodField()
-    total_sell = serializers.SerializerMethodField()
-    mobile_number = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Shop
-        fields = ['ID', 'Title', 'Slug', 'products_count',
-                  'register_datetime', 'total_sell', 'mobile_number']
-
-    def get_products_count(self, obj):
-        return obj.products_count
-
-    def get_register_datetime(self, obj):
-        return obj.DateCreate.strftime('%Y-%m-%d')
-
-    def get_total_sell(self, obj):
-        return obj.total_sell
-
-    def get_mobile_number(self, obj):
-        if obj.FK_ShopManager and hasattr(obj.FK_ShopManager, 'User_Profile'):
-            return obj.FK_ShopManager.User_Profile.MobileNumber
-        return None
 
 
 class CampaignShopSerializer(serializers.ModelSerializer):
