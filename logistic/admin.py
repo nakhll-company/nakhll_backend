@@ -22,6 +22,7 @@ class ShopLogisticUnitCalculationMetricAdmin(admin.ModelAdmin):
         'price_per_kilogram',
         'price_per_extra_kilogram']
     list_filter = ['shop_logistic_unit__name', 'shop_logistic_unit__logo_type']
+    search_fields = ['shop_logistic_unit__shop__Title', ]
 
     @admin.display(ordering='shop_logistic_unit__name',
                    description='نام واحد ارسال')
@@ -56,7 +57,7 @@ class ShopLogisticUnitCalculationMetricAdmin(admin.ModelAdmin):
             messages.SUCCESS)
 
 
-@admin.register(LogisticUnitGeneralSetting)
+# @admin.register(LogisticUnitGeneralSetting)
 class LogisticUnitGeneralSettingAdmin(admin.ModelAdmin):
     list_display = [
         'name',
