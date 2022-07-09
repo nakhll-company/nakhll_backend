@@ -18,7 +18,7 @@ decorator==5.1.0
 defusedxml==0.7.1
 diff-match-patch==20200713
 discord-webhook==0.14.0
-Django==3.2.12
+Django==3.2.14
 django-analytical==3.0.0
 django-braces==1.14.0
 django-colorfield==0.4.3
