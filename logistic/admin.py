@@ -57,7 +57,7 @@ class ShopLogisticUnitCalculationMetricAdmin(admin.ModelAdmin):
             messages.SUCCESS)
 
 
-# @admin.register(LogisticUnitGeneralSetting)
+@admin.register(LogisticUnitGeneralSetting)
 class LogisticUnitGeneralSettingAdmin(admin.ModelAdmin):
     list_display = [
         'name',
