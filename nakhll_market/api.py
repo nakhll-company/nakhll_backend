@@ -19,7 +19,7 @@ from rest_framework.decorators import action
 from django_filters import rest_framework as restframework_filters
 from logistic.models import ShopLogisticUnit
 from nakhll.utils import excel_response, get_dict
-from nakhll_market.exceptions import UnPublishedShop
+from nakhll_market.exceptions import UnPublishedProductException, UnPublishedShopException
 from nakhll_market.interface import DiscordAlertInterface, ProductChangeTypes
 from nakhll_market.models import (
     Alert,
@@ -374,7 +374,13 @@ class ProductDetailsViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     serializer_class = ProductDetailSerializer
     permission_classes = [permissions.AllowAny, ]
     lookup_field = 'Slug'
-    queryset = Product.objects.select_related('FK_Shop').filter(Publish=True)
+    queryset = Product.objects.select_related('FK_Shop')
+
+    def get_object(self):
+        product = super().get_object()
+        if not product.FK_Shop.Publish or not product.Publish:
+            raise UnPublishedProductException()
+        return product
 
 
 class ProductCommentsViewSet(
@@ -454,7 +460,7 @@ class GetShop(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     def get_object(self):
         shop = super().get_object()
         if not shop.Publish:
-            raise UnPublishedShop()
+            raise UnPublishedShopException()
         return shop
 
 
