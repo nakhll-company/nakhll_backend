@@ -334,17 +334,22 @@ class ProductsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     ordering_fields = ('Title', 'Price', 'DiscountPrecentage', 'DateCreate',)
 
     def get_queryset(self):
-        res = Product.objects.select_related('FK_Shop').annotate(
-            is_available=Cast(Case(
-                When(Q(FK_Shop__Publish=True) & Q(FK_Shop__Available=True) &
-                     Q(Publish=True) & Q(Available=True) & Q(Inventory__gt=0),
-                     then=Value(True)),
-                default=Value(False)), output_field=BooleanField())
-        ).filter(
-            Q(Publish=True), ~Q(FK_Shop=None)).annotate(DiscountPrecentage=Case(
-                When(OldPrice__gt=0, then=(
-                    (F('OldPrice') - F('Price')) * 100 / F('OldPrice'))
-                ), default=0)).order_by('-is_available', '-category_id')
+        res = Product.objects.filter(Publish=True, FK_Shop__Publish=True).\
+            select_related('FK_Shop').annotate(
+            is_available=Cast(
+                Case(
+                    When(
+                        Q(Status__in=(1, 2, 3)) &
+                        Q(Inventory__gt=0),
+                        then=Value(True)),
+                    default=Value(False)),
+                output_field=BooleanField())).annotate(
+            DiscountPrecentage=Case(
+                When(
+                    OldPrice__gt=0,
+                    then=((F('OldPrice') - F('Price')) * 100 / F('OldPrice'))),
+                default=0)).order_by(
+            '-is_available', '-category_id')
         search_query = self.request.query_params.get('search', None)
         q_query = self.request.query_params.get('q', None)
         if search_query:
