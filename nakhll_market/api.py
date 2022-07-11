@@ -19,6 +19,7 @@ from rest_framework.decorators import action
 from django_filters import rest_framework as restframework_filters
 from logistic.models import ShopLogisticUnit
 from nakhll.utils import excel_response, get_dict
+from nakhll_market.exceptions import UnPublishedShop
 from nakhll_market.interface import DiscordAlertInterface, ProductChangeTypes
 from nakhll_market.models import (
     Alert,
@@ -447,8 +448,14 @@ class GetShopWithSlug(views.APIView):
 class GetShop(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, ]
     serializer_class = ShopSerializer
-    queryset = Shop.objects.filter(Available=True, Publish=True)
+    queryset = Shop.objects.all()
     lookup_field = 'Slug'
+
+    def get_object(self):
+        shop = super().get_object()
+        if not shop.Publish:
+            raise UnPublishedShop()
+        return shop
 
 
 class GetShopList(viewsets.GenericViewSet, mixins.ListModelMixin):
