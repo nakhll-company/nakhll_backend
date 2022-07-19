@@ -1025,6 +1025,12 @@ class Product(models.Model):
         max_length=13,
         null=True,
         blank=True)
+    aparat_video_script = models.CharField(
+        verbose_name='اسکریپت ویدیو آپارات', 
+        max_length=255,
+        null=True,
+        blank=True,
+        default=None)
     history = HistoricalRecords()
 
     @property

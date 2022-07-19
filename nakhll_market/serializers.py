@@ -295,6 +295,7 @@ class ProductDetailSerializer(serializers.HyperlinkedModelSerializer):
             'story',
             'width_with_packing',
             'PreparationDays',
+            'aparat_video_script',
         ]
 
 
