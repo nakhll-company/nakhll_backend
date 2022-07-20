@@ -1495,7 +1495,8 @@ class ProductBanner(models.Model):
     Title = models.CharField(
         verbose_name='برچسب روی بنر',
         max_length=100,
-        null=True)
+        null=True,
+        blank=True,)
     Description = models.TextField(
         verbose_name='درباره بنر',
         max_length=350,

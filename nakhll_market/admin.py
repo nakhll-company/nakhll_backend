@@ -8,7 +8,7 @@ from django.utils.translation import ngettext
 from django.contrib import admin
 from django.contrib.admin import ModelAdmin
 from django.contrib.auth.models import Permission, User
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from nakhll import utils
 from nakhll_market.models import (
     State,
@@ -163,12 +163,18 @@ class ShopAdmin(ExportActionMixin, admin.ModelAdmin):
 
 
 class ProductBannerInline(admin.StackedInline):
+    autocomplete_fields = ('FK_User',)
     model = ProductBanner
     extra = 1
 
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    autocomplete_fields = [
+        'FK_User',
+        'FK_Shop',
+        'category',
+        'post_range_cities']
     list_display = (
         'Title',
         'Slug',
@@ -182,6 +188,13 @@ class ProductAdmin(admin.ModelAdmin):
     ordering = ['ID', 'DateCreate', 'DateUpdate']
     inlines = [ProductBannerInline, ]
     actions = ["un_publish_product", "publish_product"]
+
+    def get_queryset(self, request: HttpRequest):
+        return super().get_queryset(request)\
+            .select_related('FK_Shop').select_related('category')\
+            .prefetch_related('post_range_cities',
+                              'post_range_cities__big_city',
+                              'post_range_cities__big_city__state',)
 
     @admin.action(description='از حالت انتشار خارج کن', )
     def un_publish_product(self, request, queryset):
@@ -231,6 +244,7 @@ class CategoryAdmin(admin.ModelAdmin):
         'parent',
         'available')
     list_filter = ('parent', 'available')
+    search_fields = ('name', 'slug',)
     ordering = ('-parent', 'id',)
 
 
@@ -251,7 +265,7 @@ class AlertAdmin(ModelAdmin):
 
 
 @admin.register(ProductBanner)
-class ProductBanner(ModelAdmin):
+class ProductBannerAdmin(ModelAdmin):
     list_display = ('FK_Product', 'Title', 'DateCreate', 'DateUpdate')
     list_filter = ('FK_Product', 'Title', 'DateCreate', 'DateUpdate')
     search_fields = ('FK_Product__Title',)
@@ -399,3 +413,7 @@ class CityAdmin(admin.ModelAdmin):
     list_display = ['name', 'big_city']
     search_fields = ['name']
     readonly_fields = ['id', 'name', 'big_city', 'code']
+
+    def get_queryset(self, request: HttpRequest):
+        return super().get_queryset(request).select_related(
+            'big_city').select_related('big_city__state')
