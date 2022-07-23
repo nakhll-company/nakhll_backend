@@ -1003,7 +1003,7 @@ class Product(models.Model):
     Publish = models.BooleanField(
         verbose_name='وضعیت انتشار محصول',
         choices=PUBLISH_STATUS,
-        default=False)
+        default=True)
     FK_User = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

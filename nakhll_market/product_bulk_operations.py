@@ -61,7 +61,6 @@ class BulkProductHandler:
     def parse_csv(self, csv_file):
         dtypes = {**self.required_fields_with_types, **self.optional_fields_with_types}
         df = pd.read_csv(csv_file, dtype=dtypes)
-        # df = pd.read_csv(csv_file)
         self.df = df
         self.total_rows = df.shape[0]
         return self.dataframe_parser()
