@@ -7,9 +7,7 @@ from django.contrib import messages
 from django.utils.translation import ngettext
 from django.contrib import admin
 from django.contrib.admin import ModelAdmin
-from django.contrib.auth.models import Permission, User
-from django.db.models import Count, Prefetch
-from nakhll import utils
+from django.contrib.auth.models import Permission
 from nakhll_market.models import (
     State,
     BigCity,
