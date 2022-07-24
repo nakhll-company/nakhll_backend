@@ -9,7 +9,7 @@ import string
 import os
 from django.http import Http404
 from django.db import models
-from django.db.models import F, Q, Count, UniqueConstraint
+from django.db.models import F, Q, Count, UniqueConstraint, CheckConstraint
 from django.db.models.fields import FloatField
 from django.db.models.functions import Cast
 from django.db.models.aggregates import Avg, Sum
@@ -1434,7 +1434,14 @@ class Product(models.Model):
                 fields=[
                     'Title',
                     'FK_Shop_id'],
-                name='unique_shop_product_title')]
+                name='unique_shop_product_title'),
+            CheckConstraint(
+                check=~Q(Price=0),
+                name='check_price_not_zero'),
+            CheckConstraint(
+                check=Q(OldPrice__gt=F('Price')) | Q(OldPrice=0),
+                name='price_is_greater_than_discounted_price'
+            )]
 
 
 class Tag(models.Model):
