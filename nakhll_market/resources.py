@@ -116,9 +116,17 @@ class ShopAdminResource(resources.ModelResource):
         attribute='city',
         column_name='شهر',
         readonly=True)
-    products_count = Field(
+    publish = Field(
+        attribute='publish',
+        column_name='وضعیت انتشار',
+        readonly=True)
+    products_count = Field(column_name='تعداد محصول', readonly=True)
+    published_products_count = Field(
         attribute='products_count',
-        column_name='تعداد محصول',
+        column_name='تعداد محصول منتشر شده',
+        readonly=True)
+    unpublished_products_count = Field(
+        column_name='تعداد محصول غیر منتشر شده',
         readonly=True)
     total_sell = Field(
         attribute='total_sell',
@@ -159,3 +167,9 @@ class ShopAdminResource(resources.ModelResource):
 
     def get_queryset(self):
         return Shop.objects.select_related('FK_ShopManager')
+
+    def dehydrate_products_count(self, shop):
+        return shop.get_all_products().count()
+
+    def dehydrate_unpublished_products_count(self, shop):
+        return shop.get_all_products().filter(publish=False).count()
