@@ -86,18 +86,18 @@ class WithdrawTestCase(TestCase):
             self.save()
 
     def test_balance_is_more_than_or_equal_to_cashable_amount(self):
+        self.account.balance = 10
+        self.account.cashable_amount = 20
         with self.assertRaises(Exception):
-            self.account.balance = 10
-            self.account.cashable_amount = 20
             self.account.save()
 
     def test_blocked_balance_is_more_than_or_equal_to_blocked_cashable_amount(
             self):
+        self.account.balance = 100
+        self.account.cashable_amount = 50
+        self.account.blocked_balance = 40
+        self.account.blocked_cashable_amount = 41
         with self.assertRaises(Exception):
-            self.account.balance = 100
-            self.account.cashable_amount = 50
-            self.account.blocked_balance = 40
-            self.account.blocked_cashable_amount = 41
             self.account.save()
 
 
@@ -113,9 +113,29 @@ class ConfirmTestCase(TestCase):
 
     def test_confirm_withdraw_request(self):
         self.account.withdraw(50)
-        AccountRequest.objects.confirm(id=self.account.id)
+        AccountRequest.objects.confirm(from_account=self.account.id)
         self.account.refresh_from_db()
         self.assertEqual(self.account.balance, 50)
         self.assertEqual(self.account.blocked_balance, 0)
         self.assertEqual(self.account.cashable_amount, 0)
+        self.assertEqual(self.account.blocked_cashable_amount, 0)
+
+
+class RejectTestCase(TestCase):
+    def setUp(self) -> None:
+        self.user = User.objects.get(username='dummy')
+        self.nakhll_account = Account.objects.nakhll_account
+        self.account = Account.objects.create(user=self.user)
+        self.account.balance = 100
+        self.account.cashable_amount = 50
+        self.account.save()
+        self.account.refresh_from_db()
+        self.account.withdraw(50)
+
+    def test_reject_withdraw_request(self):
+        AccountRequest.objects.get(from_account=self.account.id).reject()
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.balance, 100)
+        self.assertEqual(self.account.blocked_balance, 0)
+        self.assertEqual(self.account.cashable_amount, 50)
         self.assertEqual(self.account.blocked_cashable_amount, 0)

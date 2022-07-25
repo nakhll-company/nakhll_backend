@@ -147,6 +147,11 @@ class AccountTransaction(models.Model):
 class AccountRequest(models.Model):
     class RequestType(models.IntegerChoices):
         WITHDRAW = 0, _('درخواست تسویه')
+
+    class Status(models.IntegerChoices):
+        PENDING = 0, _('در انتظار')
+        CONFIRMED = 1, _('تایید شده')
+        REJECTED = 2, _('رد شده')
     from_account = models.ForeignKey(
         Account,
         on_delete=models.PROTECT,
@@ -161,6 +166,7 @@ class AccountRequest(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
     date_confirmed = models.DateTimeField(null=True, blank=True)
     date_rejected = models.DateTimeField(null=True, blank=True)
+    status = models.IntegerField(choices=Status.choices, default=Status.PENDING)
     objects = AccountRequestManager()
 
     class Meta:

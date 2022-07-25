@@ -1,19 +1,19 @@
-from functools import cached_property
-from warnings import catch_warnings
+from abc import ABC, abstractmethod
 from django.db.models import F
 from django.utils import timezone
 
 
-class BaseAccountRequest:
+class BaseAccountRequest(ABC):
 
     def __init__(self, account_request) -> None:
         from bank.models import Account
         self.account_request = account_request
-        self.from_account = Account.objects.select_for_update().filter(
+        self.from_account = Account.objects.select_for_update().get(
             pk=self.account_request.from_account_id)
-        self.to_account = Account.objects.select_for_update().filter(
+        self.to_account = Account.objects.select_for_update().get(
             pk=self.account_request.to_account_id)
 
+    @abstractmethod
     def validate(self):
         ''' validate request:
         1. from account balance is greater than or equal to request value
@@ -22,12 +22,6 @@ class BaseAccountRequest:
         checking them in python too.)
         2. for withdraw, cashable amount is greater than or equal to request value
         it get one account request and confirm it'''
-        if self.account_request.is_withdraw():
-            if self.from_account.first().net_cashable_amount < self.account_request.value:
-                raise Exception('not enough cashable amount')
-        if self.from_account.first(
-        ).net_balance < self.account_request.value:
-            raise Exception('not enough balance')
 
     def lock_account_request(self):
         '''when a request is confirmed, we lock it so it can't be changed anymore
@@ -41,14 +35,17 @@ class CreateRequest(BaseAccountRequest):
         self.block_account_balance_and_cashable_amount()
 
     def block_account_balance_and_cashable_amount(self):
-        self.from_account.update(
-            blocked_balance=F('blocked_balance') +
-            self.account_request.value)
+        self.from_account.blocked_balance += self.account_request.value
         if self.account_request.is_withdraw():
-            self.from_account.update(
-                blocked_cashable_amount=F('blocked_cashable_amount') +
-                self.account_request.value)
+            self.from_account.blocked_cashable_amount += self.account_request.value
+        self.from_account.save()
 
+    def validate(self):
+        if self.account_request.is_withdraw():
+            if self.from_account.net_cashable_amount < self.account_request.value:
+                raise Exception('not enough cashable amount')
+        if self.from_account.net_balance < self.account_request.value:
+            raise Exception('not enough balance')
 
 class ConfirmRequest(BaseAccountRequest):
 
@@ -69,23 +66,20 @@ class ConfirmRequest(BaseAccountRequest):
     def __update_accounts_balance_and_cashable_amount(self):
         '''update accounts balance and cashable amount
         '''
-        self.__update_balance()
         self.__update_cashable_amount()
+        self.__update_balance()
+        self.from_account.save()
+        self.to_account.save()
 
     def __update_balance(self):
-        self.from_account.update(
-            blocked_balance=F('blocked_balance') - self.account_request.value,
-            balance=F('balance') - self.account_request.value)
-        self.to_account.update(
-            balance=F('balance') + self.account_request.value)
+        self.from_account.blocked_balance -= self.account_request.value
+        self.from_account.balance -= self.account_request.value
+        self.to_account.balance += self.account_request.value
 
     def __update_cashable_amount(self):
         if self.account_request.is_withdraw():
-            self.from_account.update(
-                cashable_amount=F('cashable_amount') -
-                self.account_request.value,
-                blocked_cashable_amount=F('blocked_cashable_amount') -
-                self.account_request.value)
+            self.from_account.cashable_amount -= self.account_request.value
+            self.from_account.blocked_cashable_amount -= self.account_request.value
 
     def __generate_transactions(self):
         self.__generate_withdraw_transaction()
@@ -114,8 +108,17 @@ class ConfirmRequest(BaseAccountRequest):
         )
 
     def __update_account_request_status(self):
-        self.account_request.update(date_confirmed=timezone.now())
+        from bank.models import AccountRequest
+        self.account_request.date_confirmed = timezone.now()
+        self.account_request.status = AccountRequest.Status.CONFIRMED
+        self.account_request.save()
 
+    def validate(self):
+        if self.from_account.blocked_balance < self.account_request.value:
+            raise Exception('not enough balance')
+        if self.account_request.is_withdraw():
+            if self.from_account.blocked_cashable_amount < self.account_request.value:
+                raise Exception('not enough blocked cashable amount')
 
 class RejectRequest(BaseAccountRequest):
 
@@ -130,16 +133,17 @@ class RejectRequest(BaseAccountRequest):
     def __update_accounts_balance_and_cashable_amount(self):
         self.__update_blocked_balance()
         self.__update_blocked_cashable_amount()
+        self.from_account.save()
 
     def __update_blocked_balance(self):
-        self.from_account.update(
-            blocked_balance=F('blocked_balance') - self.account_request.value)
+        self.from_account.blocked_balance -= self.account_request.value
 
     def __update_blocked_cashable_amount(self):
         if self.account_request.is_withdraw():
-            self.from_account.update(
-                blocked_cashable_amount=F('blocked_cashable_amount') -
-                self.account_request.value)
+            self.from_account.blocked_cashable_amount -= self.account_request.value
 
     def __update_account_request_status(self):
-        self.account_request.update(date_rejected=timezone.now())
+        from bank.models import AccountRequest
+        self.account_request.date_rejected=timezone.now()
+        self.account_request.status = AccountRequest.Status.REJECTED
+        self.account_request.save()
