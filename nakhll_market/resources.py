@@ -172,4 +172,4 @@ class ShopAdminResource(resources.ModelResource):
         return shop.get_all_products().count()
 
     def dehydrate_unpublished_products_count(self, shop):
-        return shop.get_all_products().filter(publish=False).count()
+        return shop.get_all_products().filter(Publish=False).count()
