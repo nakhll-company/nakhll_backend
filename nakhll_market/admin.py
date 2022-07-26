@@ -99,18 +99,20 @@ class ShopProductCountFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return [
-            ({'annoatate_products_count': 0}, '=0'),
-            ({'annoatate_products_count__lt': '10'}, '<10'),
-            ({'annoatate_products_count__lt': '50'}, '<50'),
-            ({'annoatate_products_count__lt': '100'}, '<100'),
-            ({'annoatate_products_count__gte': '100'}, '>=100'),
+            ({'annoatate_products_count': 0}, 'بدون محصول'),
+            ({'annoatate_products_count__lt': '10'}, 'کمتر از 10 محصول'),
+            ({'annoatate_products_count__lt': '50'}, 'کمتر از 50 محصول'),
+            ({'annoatate_products_count__lt': '100'}, 'کمتر از 100 محصول'),
+            ({'annoatate_products_count__gte': '100'}, '100 و یا بیشتر از 100 محصول'),
         ]
 
     def queryset(self, request, queryset):
-        if isinstance(self.value(), dict):
-            queryset = queryset.annotate(
+        try:
+            return queryset.annotate(
                 annoatate_products_count=Count('ShopProduct')).filter(
-                **self.value())
+                **eval(self.value()))
+        except BaseException:
+            pass
 
 
 @admin.register(Shop)
