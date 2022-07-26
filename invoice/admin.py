@@ -4,6 +4,7 @@ import json
 from django.db.models import F
 from django.contrib import admin
 from django.utils.timezone import localtime
+from django.utils import timezone
 from invoice.models import Invoice, InvoiceItem
 from coupon.models import CouponUsage
 
@@ -19,15 +20,14 @@ class InvoiceItemInline(admin.TabularInline):
         'price_without_discount',
         'weight',
         'shop_name',
-        'preperation',
+        'preparation',
         'barcode')
-    readonly_fields = ('preperation',)
+    readonly_fields = fields
     extra = 0
-    # readonly_fields = fields
 
-    def preperation(self, obj):
+    def preparation(self, obj):
         return obj.product.PreparationDays
-    preperation.short_description = 'زمان آماده سازی'
+    preparation.short_description = 'زمان آماده سازی'
 
 
 class CouponUsageInline(admin.TabularInline):
@@ -52,22 +52,32 @@ class InvoiceAdmin(admin.ModelAdmin):
         'post_tracking_code',
     )
     list_filter = ('status', 'user',)
-    readonly_fields = (
-        'id',
-        'final_price',
-        'post_price',
-        'coupons_total_price',
-        'display_address',
-        'receiver_full_name',
-        'created_datetime_jalali',
-        'post_tracking_code',
-        'status',
-        'shop_iban',
-        'is_payed',
-    )
     ordering = ['-created_datetime', ]
     search_fields = ('id', 'FactorNumber')
     fields = (
+        'id',
+        'user',
+        'old_id',
+        'FactorNumber',
+        'status',
+        'display_address',
+        'invoice_price_with_discount',
+        'invoice_price_without_discount',
+        'logistic_price',
+        'payment_request_datetime',
+        'payment_datetime',
+        'logistic_unit_details',
+        'payment_unique_id',
+        'total_weight_gram',
+        'final_price',
+        'shop_iban',
+        'is_payed',
+        'created_datetime_jalali',
+        'coupons_total_price',
+        'description',
+        'date_checkout',
+        'date_canceled')
+    readonly_fields = (
         'id',
         'user',
         'old_id',
@@ -156,6 +166,7 @@ class InvoiceAdmin(admin.ModelAdmin):
         if "checkout_invoice" in request.POST:
             if request.user.has_perm('invoice.checkout_invoice'):
                 obj.status = obj.Statuses.COMPLETED
+                obj.date_checkout = timezone.now()
                 obj.save()
                 self.message_user(request, "فاکتور با موفقیت تسویه شد.")
                 return HttpResponseRedirect(".")
@@ -163,4 +174,16 @@ class InvoiceAdmin(admin.ModelAdmin):
                 self.message_user(
                     request, "شما دسترسی لازم برای این کار را ندارید")
                 return HttpResponseRedirect(".")
+        if "cancel_invoice" in request.POST:
+            if request.user.has_perm('invoice.cancel_invoice'):
+                obj.status = obj.Statuses.CANCELED
+                obj.date_canceled = timezone.now()
+                obj.save()
+                self.message_user(request, "فاکتور با موفقیت لغو شد.")
+                return HttpResponseRedirect(".")
+            else:
+                self.message_user(
+                    request, "شما دسترسی لازم برای این کار را ندارید")
+                return HttpResponseRedirect(".")
+
         return super().response_change(request, obj)

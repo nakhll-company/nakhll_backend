@@ -8,6 +8,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.auth.models import User
+from django_jalali.db import models as jmodels
 from cart.managers import CartManager
 from nakhll.utils import datetime2jalali
 from nakhll_market.interface import AlertInterface
@@ -92,9 +93,9 @@ class Invoice(models.Model):
         verbose_name=_('جزئیات واحد حمل و نقل'))
     description = models.TextField(
         verbose_name='توضیحات', null=True, blank=True)
-    date_checkout = models.DateTimeField(
+    date_checkout = jmodels.jDateTimeField(
         verbose_name='تاریخ تسویه', null=True, blank=True)
-    date_canceled = models.DateTimeField(
+    date_canceled = jmodels.jDateTimeField(
         verbose_name='تاریخ لغو', null=True, blank=True)
     objects = AccountingManager()
 
