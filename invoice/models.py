@@ -90,6 +90,8 @@ class Invoice(models.Model):
     logistic_unit_details = models.JSONField(
         null=True, blank=True, encoder=DjangoJSONEncoder,
         verbose_name=_('جزئیات واحد حمل و نقل'))
+    description = models.TextField(
+        verbose_name='توضیحات', null=True, blank=True)
     objects = AccountingManager()
 
     def __str__(self):
