@@ -92,6 +92,10 @@ class Invoice(models.Model):
         verbose_name=_('جزئیات واحد حمل و نقل'))
     description = models.TextField(
         verbose_name='توضیحات', null=True, blank=True)
+    date_checkout = models.DateTimeField(
+        verbose_name='تاریخ تسویه', null=True, blank=True)
+    date_canceled = models.DateTimeField(
+        verbose_name='تاریخ لغو', null=True, blank=True)
     objects = AccountingManager()
 
     def __str__(self):
