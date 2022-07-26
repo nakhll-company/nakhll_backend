@@ -1,7 +1,8 @@
 from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.utils.safestring import mark_safe
 import jdatetime
 import json
-from django.db.models import F
 from django.contrib import admin
 from django.utils.timezone import localtime
 from django.utils import timezone
@@ -14,7 +15,7 @@ from coupon.models import CouponUsage
 class InvoiceItemInline(admin.TabularInline):
     model = InvoiceItem
     fields = (
-        'name',
+        'product_name',
         'count',
         'price_with_discount',
         'price_without_discount',
@@ -25,10 +26,21 @@ class InvoiceItemInline(admin.TabularInline):
     readonly_fields = fields
     extra = 0
 
+    def product_name(self, obj):
+        return mark_safe(
+            '<a href="{}">{}</a>'.format(
+                reverse(
+                    "admin:nakhll_market_product_change",
+                    args=(obj.product.pk,)),
+                obj.product))
+    product_name.short_description = 'نام محصول'
+
     def preparation(self, obj):
         return obj.product.PreparationDays
     preparation.short_description = 'زمان آماده سازی'
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('product')
 
 class CouponUsageInline(admin.TabularInline):
     model = CouponUsage
@@ -51,7 +63,7 @@ class InvoiceAdmin(admin.ModelAdmin):
         'created_datetime_jalali',
         'post_tracking_code',
     )
-    list_filter = ('status', 'user',)
+    list_filter = ('status',)
     ordering = ['-created_datetime', ]
     search_fields = ('id', 'FactorNumber')
     fields = (
@@ -145,6 +157,10 @@ class InvoiceAdmin(admin.ModelAdmin):
     def coupons_total_price(self, obj):
         return f'{obj.coupons_total_price:,} ریال'
     coupons_total_price.short_description = 'هزینه کوپن'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'user').prefetch_related('items').prefetch_related('coupon_usages')
 
     def display_address(self, obj):
         if obj.address_json:
